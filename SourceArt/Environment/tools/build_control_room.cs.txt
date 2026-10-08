@@ -1,0 +1,331 @@
+// Builds the control room (SPEC 3.1) as ControlRoom.prefab and the Env_ControlRoom scene. Run through eval_file.
+var sb = new System.Text.StringBuilder();
+const string env = "Assets/VRRocket/Environment";
+const string scenePath = "Assets/VRRocket/Scenes/Env_ControlRoom.unity";
+string projectRoot = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, ".."));
+var lit = Shader.Find("Universal Render Pipeline/Lit");
+var staticFlags = UnityEditor.StaticEditorFlags.ContributeGI | UnityEditor.StaticEditorFlags.OccluderStatic | UnityEditor.StaticEditorFlags.OccludeeStatic | UnityEditor.StaticEditorFlags.BatchingStatic | UnityEditor.StaticEditorFlags.ReflectionProbeStatic;
+
+// ---------- room dimensions (metres) ----------
+const float W = 7.2f, D = 5.2f, H = 3.0f;      // x -3.6..3.6, z -2.6..2.6
+const float DeskH = 0.95f;
+
+// ---------- materials ----------
+Material Load(string n) { return UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(env + "/Materials/" + n + ".mat"); }
+Material Mat(string name, Color c, float metallic, float smooth, Color emission, bool transparent = false)
+{
+    var p = env + "/Materials/" + name + ".mat";
+    var m = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(p);
+    if (m == null) { m = new Material(lit); UnityEditor.AssetDatabase.CreateAsset(m, p); }
+    m.shader = lit; m.SetColor("_BaseColor", c); m.SetFloat("_Metallic", metallic); m.SetFloat("_Smoothness", smooth);
+    if (emission.maxColorComponent > 0f) { m.SetColor("_EmissionColor", emission); m.EnableKeyword("_EMISSION"); m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.BakedEmissive; }
+    else { m.DisableKeyword("_EMISSION"); m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack; }
+    if (transparent) { m.SetFloat("_Surface", 1f); m.SetOverrideTag("RenderType", "Transparent"); m.renderQueue = 3000; m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha); m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha); m.SetInt("_ZWrite", 0); m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT"); }
+    UnityEditor.EditorUtility.SetDirty(m); return m;
+}
+var none = Color.black;
+var matDark = Mat("Mat_DarkMetal", new Color(0.13f, 0.13f, 0.14f), 0.75f, 0.45f, none);
+var matBlack = Mat("Mat_Black", new Color(0.035f, 0.035f, 0.04f), 0.2f, 0.55f, none);
+var matGreen = Mat("Mat_AccentGreen", new Color(0.05f, 0.55f, 0.18f), 0.1f, 0.5f, new Color(0.1f, 1.2f, 0.3f));
+var matRed = Mat("Mat_AccentRed", new Color(0.7f, 0.05f, 0.05f), 0.1f, 0.5f, new Color(1.6f, 0.08f, 0.05f));
+var matLED = Mat("Mat_LEDPanel", Color.white, 0f, 0.2f, new Color(1f, 0.98f, 0.94f) * 6f);
+var matGlass = Mat("Mat_Glass", new Color(0.85f, 0.92f, 1f, 0.22f), 0f, 0.95f, none, true);
+var matGround = Mat("Mat_Ground", new Color(0.42f, 0.44f, 0.36f), 0f, 0.15f, none);
+var matFloor = Load("Surface_smooth_concrete_floor"); var matWall = Load("Surface_painted_plaster_wall"); var matPlate = Load("Surface_metal_plate"); var matRubber = Load("Surface_rubber_tiles");
+matPlate.SetColor("_BaseColor", new Color(0.55f, 0.56f, 0.58f)); matPlate.SetTextureScale("_BaseMap", new Vector2(1.5f, 1.5f));
+matFloor.SetTextureScale("_BaseMap", new Vector2(3f, 2.2f)); matFloor.SetColor("_BaseColor", new Color(0.8f, 0.8f, 0.82f));
+matWall.SetTextureScale("_BaseMap", new Vector2(3f, 1.5f)); matWall.SetColor("_BaseColor", new Color(0.93f, 0.93f, 0.92f));
+matRubber.SetTextureScale("_BaseMap", new Vector2(3f, 2f)); matRubber.SetColor("_BaseColor", new Color(0.35f, 0.35f, 0.36f));
+
+// launch screen placeholder texture
+{
+    int w = 1024, h = 576; var tex = new Texture2D(w, h, TextureFormat.RGB24, false);
+    var px = new Color[w * h];
+    for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
+        float t = (float)y / h;
+        var c = Color.Lerp(new Color(0.03f, 0.08f, 0.16f), new Color(0.01f, 0.02f, 0.05f), t);
+        if (x % 64 == 0 || y % 64 == 0) c += new Color(0.03f, 0.05f, 0.08f);
+        if (y == h * 2 / 5) c = new Color(0.15f, 0.35f, 0.25f);
+        // pad and tower silhouette
+        int cx = w / 2; if (y < h * 2 / 5 && y > h * 2 / 5 - 12 && Mathf.Abs(x - cx) < 120) c = new Color(0.25f, 0.27f, 0.3f);
+        if (y >= h * 2 / 5 && y < h * 2 / 5 + 230 && x > cx + 40 && x < cx + 70) c = new Color(0.22f, 0.24f, 0.27f);
+        if (y >= h * 2 / 5 && y < h * 2 / 5 + 200 && Mathf.Abs(x - cx) < 18) c = new Color(0.85f, 0.86f, 0.88f);
+        if (y >= h * 2 / 5 + 200 && y < h * 2 / 5 + 240 && Mathf.Abs(x - cx) < 18 - (y - (h * 2 / 5 + 200)) * 18 / 40) c = new Color(0.95f, 0.55f, 0.3f);
+        if (y >= h * 2 / 5 && y < h * 2 / 5 + 50 && Mathf.Abs(x - cx) >= 18 && Mathf.Abs(x - cx) < 18 + (50 - (y - h * 2 / 5)) * 0.9f) c = new Color(0.95f, 0.55f, 0.3f);
+        px[y * w + x] = c;
+    }
+    tex.SetPixels(px); tex.Apply();
+    var tp = env + "/Textures/LaunchScreen_Placeholder.png";
+    System.IO.File.WriteAllBytes(System.IO.Path.Combine(projectRoot, tp), tex.EncodeToPNG());
+    UnityEditor.AssetDatabase.ImportAsset(tp, UnityEditor.ImportAssetOptions.ForceSynchronousImport);
+    var ti = UnityEditor.AssetImporter.GetAtPath(tp) as UnityEditor.TextureImporter; ti.maxTextureSize = 1024; ti.SaveAndReimport();
+    UnityEngine.Object.DestroyImmediate(tex);
+}
+var screenTex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(env + "/Textures/LaunchScreen_Placeholder.png");
+var matScreen = Mat("Mat_LaunchScreen", Color.black, 0f, 0.6f, Color.white * 1.6f);
+matScreen.SetTexture("_EmissionMap", screenTex); matScreen.SetTexture("_BaseMap", screenTex);
+
+// skybox from the HDRI
+{
+    if (!UnityEditor.AssetDatabase.IsValidFolder(env + "/Textures/Skybox")) UnityEditor.AssetDatabase.CreateFolder(env + "/Textures", "Skybox");
+    var hdrAsset = env + "/Textures/Skybox/qwantani_puresky_2k.hdr";
+    if (UnityEditor.AssetDatabase.LoadAssetAtPath<Texture>(hdrAsset) == null) {
+        System.IO.File.Copy(System.IO.Path.Combine(projectRoot, "SourceArt/Environment/polyhaven_hdri/qwantani_puresky/qwantani_puresky_2k.hdr"), System.IO.Path.Combine(projectRoot, hdrAsset), true);
+        UnityEditor.AssetDatabase.ImportAsset(hdrAsset, UnityEditor.ImportAssetOptions.ForceSynchronousImport);
+    }
+    var ti = UnityEditor.AssetImporter.GetAtPath(hdrAsset) as UnityEditor.TextureImporter;
+    ti.textureShape = UnityEditor.TextureImporterShape.TextureCube; ti.generateCubemap = UnityEditor.TextureImporterGenerateCubemap.AutoCubemap; ti.maxTextureSize = 1024; ti.sRGBTexture = false; ti.mipmapEnabled = true; ti.SaveAndReimport();
+    var skyPath = env + "/Materials/Mat_Skybox.mat";
+    var sky = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(skyPath);
+    if (sky == null) { sky = new Material(Shader.Find("Skybox/Cubemap")); UnityEditor.AssetDatabase.CreateAsset(sky, skyPath); }
+    sky.SetTexture("_Tex", UnityEditor.AssetDatabase.LoadAssetAtPath<Cubemap>(hdrAsset)); sky.SetFloat("_Exposure", 1.0f);
+    UnityEditor.EditorUtility.SetDirty(sky);
+}
+
+// ---------- scene ----------
+var scene = UnityEditor.SceneManagement.EditorSceneManager.NewScene(UnityEditor.SceneManagement.NewSceneSetup.EmptyScene, UnityEditor.SceneManagement.NewSceneMode.Single);
+RenderSettings.skybox = Load("Mat_Skybox");
+RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Skybox; RenderSettings.ambientIntensity = 1f;
+RenderSettings.defaultReflectionMode = UnityEngine.Rendering.DefaultReflectionMode.Skybox; RenderSettings.reflectionIntensity = 1f;
+
+var room = new GameObject("ControlRoom");
+Transform T(string name, Transform parent) { var g = new GameObject(name); g.transform.SetParent(parent, false); return g.transform; }
+var anchors = T("Anchors", room.transform);
+var arch = T("Architecture", room.transform);
+var fixtures = T("Fixtures", room.transform);
+var furniture = T("Furniture", room.transform);
+var propsT = T("Props", room.transform);
+var outside = T("Outside", room.transform);
+var lights = T("Lights", room.transform);
+
+GameObject Box(string name, Vector3 center, Vector3 size, Material m, Transform parent, bool isStatic = true)
+{
+    var g = GameObject.CreatePrimitive(PrimitiveType.Cube); g.name = name; g.transform.SetParent(parent, false); g.transform.localPosition = center; g.transform.localScale = size;
+    g.GetComponent<Renderer>().sharedMaterial = m; if (isStatic) UnityEditor.GameObjectUtility.SetStaticEditorFlags(g, staticFlags); return g;
+}
+GameObject Quad(string name, Vector3 center, Quaternion rot, Vector2 size, Material m, Transform parent, bool collider = false)
+{
+    var g = GameObject.CreatePrimitive(PrimitiveType.Quad); g.name = name; g.transform.SetParent(parent, false); g.transform.localPosition = center; g.transform.localRotation = rot; g.transform.localScale = new Vector3(size.x, size.y, 1f);
+    g.GetComponent<Renderer>().sharedMaterial = m; if (!collider) UnityEngine.Object.DestroyImmediate(g.GetComponent<Collider>()); UnityEditor.GameObjectUtility.SetStaticEditorFlags(g, staticFlags); return g;
+}
+GameObject Cyl(string name, Vector3 center, Vector3 size, Material m, Transform parent)
+{
+    var g = GameObject.CreatePrimitive(PrimitiveType.Cylinder); g.name = name; g.transform.SetParent(parent, false); g.transform.localPosition = center; g.transform.localScale = size;
+    g.GetComponent<Renderer>().sharedMaterial = m; UnityEditor.GameObjectUtility.SetStaticEditorFlags(g, staticFlags); return g;
+}
+GameObject Prop(string id, Vector3 floorPos, float yaw, Transform parent, string onlyChild = null)
+{
+    var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(env + "/Models/" + id + ".fbx");
+    var g = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(prefab); g.transform.SetParent(parent, false);
+    g.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+    if (onlyChild != null) foreach (Transform c in g.transform) c.gameObject.SetActive(c.name == onlyChild);
+    var rs = g.GetComponentsInChildren<Renderer>(); Bounds b = new Bounds(); bool first = true;
+    foreach (var r in rs) { if (first) { b = r.bounds; first = false; } else b.Encapsulate(r.bounds); }
+    g.transform.position = floorPos + new Vector3(0f, -b.min.y, 0f);
+    foreach (var r in rs) { var mc = r.gameObject.GetComponent<MeshCollider>(); if (mc == null) { mc = r.gameObject.AddComponent<MeshCollider>(); } }
+    UnityEditor.GameObjectUtility.SetStaticEditorFlags(g, staticFlags); foreach (Transform c in g.GetComponentsInChildren<Transform>(true)) UnityEditor.GameObjectUtility.SetStaticEditorFlags(c.gameObject, staticFlags);
+    return g;
+}
+GameObject Text(string name, string text, Vector3 pos, Quaternion rot, float size, Color color, Vector2 rect, TMPro.TextAlignmentOptions align, Transform parent)
+{
+    var g = new GameObject(name); g.transform.SetParent(parent, false); g.transform.localPosition = pos; g.transform.localRotation = rot;
+    var tmp = g.AddComponent<TMPro.TextMeshPro>(); tmp.text = text; tmp.fontSize = size; tmp.color = color; tmp.alignment = align; tmp.rectTransform.sizeDelta = rect; tmp.enableWordWrapping = true;
+    return g;
+}
+Transform Anchor(string name, Vector3 pos, float yaw) { var a = T(name, anchors); a.localPosition = pos; a.localRotation = Quaternion.Euler(0f, yaw, 0f); return a; }
+
+// ---------- anchors ----------
+var playerSpawn = Anchor("PlayerSpawn", new Vector3(0f, 0f, -0.2f), 0f);
+var wsAnchor = Anchor("WorkstationAnchor", new Vector3(-0.3f, DeskH, 1.45f), 0f);
+var mdAnchor = Anchor("MissionDeskAnchor", new Vector3(0f, DeskH, -1.45f), 180f);
+var binAnchor = Anchor("BinAnchor", new Vector3(-1.05f, DeskH, -1.45f), 180f);
+var screenAnchor = Anchor("LaunchScreenAnchor", new Vector3(0f, 1.95f, -2.55f), 0f);
+var helpAnchor = Anchor("HelpWallAnchor", new Vector3(3.55f, 1.65f, -0.3f), -90f);
+var blueprintAnchor = Anchor("BlueprintAnchor", new Vector3(1.0f, 1.55f, 2.3f), 0f);
+
+// ---------- architecture ----------
+Box("Floor", new Vector3(0f, -0.05f, 0f), new Vector3(W, 0.1f, D), matFloor, arch);
+Box("Ceiling", new Vector3(0f, H + 0.05f, 0f), new Vector3(W, 0.1f, D), matDark, arch);
+Box("Wall_Back", new Vector3(0f, H / 2f, D / 2f + 0.05f), new Vector3(W + 0.2f, H, 0.1f), matWall, arch);
+Box("Wall_Front", new Vector3(0f, H / 2f, -D / 2f - 0.05f), new Vector3(W + 0.2f, H, 0.1f), matWall, arch);
+Box("Wall_Right", new Vector3(W / 2f + 0.05f, H / 2f, 0f), new Vector3(0.1f, H, D), matWall, arch);
+// left wall with a window opening z -1.6..1.6, y 1.1..2.3
+Box("Wall_Left_Sill", new Vector3(-W / 2f - 0.05f, 0.55f, 0f), new Vector3(0.1f, 1.1f, D), matWall, arch);
+Box("Wall_Left_Head", new Vector3(-W / 2f - 0.05f, 2.65f, 0f), new Vector3(0.1f, 0.7f, D), matWall, arch);
+Box("Wall_Left_Front", new Vector3(-W / 2f - 0.05f, 1.7f, -2.1f), new Vector3(0.1f, 1.2f, 1.0f), matWall, arch);
+Box("Wall_Left_Rear", new Vector3(-W / 2f - 0.05f, 1.7f, 2.1f), new Vector3(0.1f, 1.2f, 1.0f), matWall, arch);
+// wainscot (dark plate band, 1.0 m)
+Box("Wainscot_Back", new Vector3(0f, 0.5f, D / 2f - 0.01f), new Vector3(W, 1.0f, 0.02f), matPlate, arch);
+Box("Wainscot_Front", new Vector3(0f, 0.5f, -D / 2f + 0.01f), new Vector3(W, 1.0f, 0.02f), matPlate, arch);
+Box("Wainscot_Right", new Vector3(W / 2f - 0.01f, 0.5f, 0f), new Vector3(0.02f, 1.0f, D), matPlate, arch);
+Box("Wainscot_Left", new Vector3(-W / 2f + 0.01f, 0.5f, 0f), new Vector3(0.02f, 1.0f, D), matPlate, arch);
+Box("Skirting_Trim_Back", new Vector3(0f, 1.02f, D / 2f - 0.02f), new Vector3(W, 0.04f, 0.04f), matDark, arch);
+Box("Skirting_Trim_Front", new Vector3(0f, 1.02f, -D / 2f + 0.02f), new Vector3(W, 0.04f, 0.04f), matDark, arch);
+Box("Skirting_Trim_Right", new Vector3(W / 2f - 0.02f, 1.02f, 0f), new Vector3(0.04f, 0.04f, D), matDark, arch);
+// rubber standing mat between the desks
+Box("StandingMat", new Vector3(0f, 0.006f, -0.1f), new Vector3(2.4f, 0.012f, 1.6f), matRubber, arch);
+// window frame + glass
+var win = T("Window", arch);
+Box("Frame_Bottom", new Vector3(-W / 2f + 0.02f, 1.1f, 0f), new Vector3(0.12f, 0.06f, 3.3f), matDark, win);
+Box("Frame_Top", new Vector3(-W / 2f + 0.02f, 2.3f, 0f), new Vector3(0.12f, 0.06f, 3.3f), matDark, win);
+foreach (var z in new[] { -1.63f, -0.55f, 0.55f, 1.63f }) Box("Mullion", new Vector3(-W / 2f + 0.02f, 1.7f, z), new Vector3(0.12f, 1.2f, 0.06f), matDark, win);
+Quad("Glass", new Vector3(-W / 2f + 0.0f, 1.7f, 0f), Quaternion.Euler(0f, -90f, 0f), new Vector2(3.2f, 1.2f), matGlass, win, true);
+Box("WindowSill", new Vector3(-W / 2f + 0.12f, 1.08f, 0f), new Vector3(0.28f, 0.04f, 3.4f), matPlate, win);
+// exit door on the left wall, front corner (surface mounted)
+var doorT = T("ExitDoor", arch);
+Box("DoorFrame", new Vector3(-W / 2f + 0.03f, 1.05f, -2.1f), new Vector3(0.06f, 2.14f, 1.0f), matDark, doorT);
+Box("DoorSlab", new Vector3(-W / 2f + 0.06f, 1.02f, -2.1f), new Vector3(0.05f, 2.04f, 0.9f), matPlate, doorT);
+Box("DoorHandle", new Vector3(-W / 2f + 0.1f, 1.0f, -1.75f), new Vector3(0.03f, 0.03f, 0.15f), matDark, doorT);
+Box("ExitSignBox", new Vector3(-W / 2f + 0.07f, 2.35f, -2.1f), new Vector3(0.08f, 0.16f, 0.4f), matGreen, doorT);
+Text("ExitSignText", "EXIT", new Vector3(-W / 2f + 0.115f, 2.35f, -2.1f), Quaternion.Euler(0f, -90f, 0f), 1.2f, Color.white, new Vector2(0.4f, 0.16f), TMPro.TextAlignmentOptions.Center, doorT);
+// roller shutter door on the right wall, rear half
+var shutter = Prop("rollershutter_door", new Vector3(W / 2f - 0.16f, 0f, 1.1f), -90f, arch, "rollershutter_door");
+
+// ---------- ceiling light panels (emissive) + baked area lights ----------
+foreach (var x in new[] { -1.8f, 1.8f }) foreach (var z in new[] { -1.6f, 0f, 1.6f }) {
+    Box("LightPanel", new Vector3(x, H - 0.02f, z), new Vector3(1.2f, 0.03f, 0.3f), matLED, fixtures);
+    var lg = new GameObject("AreaLight"); lg.transform.SetParent(lights, false); lg.transform.localPosition = new Vector3(x, H - 0.05f, z); lg.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+    var l = lg.AddComponent<Light>(); l.type = LightType.Rectangle; l.areaSize = new Vector2(1.2f, 0.3f); l.intensity = 40f; l.range = 7f; l.color = new Color(1f, 0.97f, 0.92f); l.lightmapBakeType = LightmapBakeType.Baked;
+}
+// fluorescent fixture over the workbench (one tube variant of the model)
+var fluor = Prop("mounted_fluorescent_lights", new Vector3(-0.3f, H - 0.08f, 1.5f), 0f, fixtures, "mounted_fluorescent_lights_f");
+
+// ---------- workstation bench (back) ----------
+var bench = T("WorkstationBench", furniture);
+Box("BenchTop", new Vector3(-0.3f, DeskH - 0.025f, 1.5f), new Vector3(3.0f, 0.05f, 0.8f), matPlate, bench);
+Box("BenchEdge", new Vector3(-0.3f, DeskH - 0.05f, 1.1f), new Vector3(3.0f, 0.06f, 0.03f), matDark, bench);
+foreach (var x in new[] { -1.75f, 1.15f }) foreach (var z in new[] { 1.15f, 1.85f }) Box("BenchLeg", new Vector3(x, (DeskH - 0.05f) / 2f, z), new Vector3(0.06f, DeskH - 0.05f, 0.06f), matDark, bench);
+Box("BenchShelf", new Vector3(-0.3f, 0.2f, 1.5f), new Vector3(2.9f, 0.03f, 0.7f), matDark, bench);
+Box("BenchBackPanel", new Vector3(-0.3f, DeskH + 0.25f, 1.89f), new Vector3(3.0f, 0.5f, 0.02f), matDark, bench);
+Box("BenchBackLED", new Vector3(-0.3f, DeskH + 0.49f, 1.87f), new Vector3(2.9f, 0.015f, 0.02f), matGreen, bench);
+// props on and around the bench
+Prop("bench_vice_01", new Vector3(1.0f, DeskH, 1.25f), 180f, propsT);
+Prop("metal_toolbox", new Vector3(-1.6f, DeskH, 1.65f), 20f, propsT);
+Prop("industrial_pipe_lamp", new Vector3(0.95f, DeskH, 1.75f), -30f, propsT);
+Prop("metal_tool_chest", new Vector3(-1.55f, 0.21f, 1.5f), 0f, propsT);
+Prop("steel_frame_shelves_03", new Vector3(2.35f, 0f, 2.22f), 0f, propsT);
+Prop("worn_metal_rack", new Vector3(-3.1f, 0f, 2.28f), 0f, propsT);
+// blueprint display: CRT on a wall bracket
+Box("BlueprintBracket", new Vector3(1.0f, 1.3f, 2.4f), new Vector3(0.7f, 0.04f, 0.5f), matDark, furniture);
+Box("BlueprintBracketArm", new Vector3(1.0f, 1.15f, 2.55f), new Vector3(0.6f, 0.3f, 0.04f), matDark, furniture);
+var tv = Prop("Television_01", new Vector3(1.0f, 1.32f, 2.35f), 180f, propsT);
+Text("BlueprintText", "BLUEPRINT\nstep 1 / 8", new Vector3(1.0f, 1.58f, 2.08f), Quaternion.identity, 1.4f, new Color(0.2f, 1f, 0.5f), new Vector2(0.5f, 0.3f), TMPro.TextAlignmentOptions.Center, furniture);
+
+// ---------- mission control console (front) ----------
+var console = T("MissionControlConsole", furniture);
+Box("ConsoleTop", new Vector3(0f, DeskH - 0.025f, -1.45f), new Vector3(3.4f, 0.05f, 0.8f), matPlate, console);
+Box("ConsoleEdge", new Vector3(0f, DeskH - 0.05f, -1.05f), new Vector3(3.4f, 0.06f, 0.03f), matDark, console);
+Box("ConsoleFront", new Vector3(0f, (DeskH - 0.05f) / 2f, -1.1f), new Vector3(3.4f, DeskH - 0.05f, 0.04f), matDark, console);
+Box("ConsoleBody", new Vector3(0f, (DeskH - 0.05f) / 2f, -1.5f), new Vector3(3.3f, DeskH - 0.05f, 0.7f), matDark, console);
+Box("ConsoleKick", new Vector3(0f, 0.04f, -1.08f), new Vector3(3.4f, 0.08f, 0.06f), matBlack, console);
+Box("ConsoleLEDStrip", new Vector3(0f, DeskH - 0.09f, -1.045f), new Vector3(3.3f, 0.012f, 0.012f), matGreen, console);
+// raised angled panel along the back of the console
+var panel = T("ControlPanel", console); panel.localPosition = new Vector3(0f, DeskH, -1.72f); panel.localRotation = Quaternion.Euler(-20f, 0f, 0f);
+Box("PanelBody", new Vector3(0f, 0.1f, 0f), new Vector3(3.3f, 0.2f, 0.32f), matBlack, panel);
+Box("PanelTrim", new Vector3(0f, 0.2f, -0.16f), new Vector3(3.3f, 0.02f, 0.02f), matDark, panel);
+// puzzle panel placeholder (centre-right)
+Box("PuzzlePanel", new Vector3(0.45f, 0.205f, 0.0f), new Vector3(0.7f, 0.01f, 0.26f), matDark, panel);
+foreach (var i in new[] { 0, 1, 2 }) {
+    var colors = new[] { new Color(1f, 0.2f, 0.2f), new Color(0.2f, 1f, 0.3f), new Color(0.3f, 0.6f, 1f) };
+    var cm = Mat("Mat_PuzzleWire" + i, colors[i], 0f, 0.5f, colors[i] * 0.8f);
+    Cyl("WireDotL" + i, new Vector3(0.18f, 0.215f, 0.08f - i * 0.08f), new Vector3(0.035f, 0.006f, 0.035f), cm, panel);
+    Cyl("WireDotR" + i, new Vector3(0.72f, 0.215f, 0.08f - ((i + 1) % 3) * 0.08f), new Vector3(0.035f, 0.006f, 0.035f), cm, panel);
+}
+Text("PuzzleLabel", "WIRE MATCH", new Vector3(0.45f, 0.212f, -0.12f), Quaternion.Euler(90f, 0f, 0f), 1.0f, new Color(0.7f, 0.75f, 0.8f), new Vector2(0.6f, 0.06f), TMPro.TextAlignmentOptions.Center, panel);
+// buttons: copy the XRI push button once, tint caps for Launch and Abort
+var btnPrefabPath = env + "/Prefabs/PushButton.prefab";
+if (UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(btnPrefabPath) == null) UnityEditor.AssetDatabase.CopyAsset("Assets/XRI_Examples/UI_3D/Prefabs/PushButton.prefab", btnPrefabPath);
+var btnPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(btnPrefabPath);
+GameObject Button(string name, Vector3 localPos, Material cap, Transform parent, string label) {
+    var g = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(btnPrefab); g.name = name; g.transform.SetParent(parent, false); g.transform.localPosition = localPos; g.transform.localRotation = Quaternion.identity;
+    if (cap != null) foreach (var r in g.GetComponentsInChildren<Renderer>()) if (r.name == "EmergencyStop") { var ms = r.sharedMaterials; ms[0] = cap; r.sharedMaterials = ms; }
+    Text(name + "Label", label, new Vector3(localPos.x, localPos.y + 0.006f, localPos.z - 0.1f), Quaternion.Euler(90f, 0f, 0f), 0.9f, new Color(0.85f, 0.88f, 0.9f), new Vector2(0.3f, 0.05f), TMPro.TextAlignmentOptions.Center, parent);
+    return g;
+}
+Button("SubmitButton", new Vector3(-0.55f, 0.2f, 0.02f), null, panel, "SUBMIT");
+Button("LaunchButton", new Vector3(1.05f, 0.2f, 0.02f), matGreen, panel, "LAUNCH");
+Button("AbortButton", new Vector3(1.4f, 0.2f, 0.02f), matRed, panel, "ABORT");
+// submission bin: a dark recess in the console top at the left, with a green rim
+var binT = T("SubmissionBin", console);
+Box("BinShaft", new Vector3(-1.05f, DeskH - 0.2f, -1.45f), new Vector3(0.46f, 0.36f, 0.46f), matBlack, binT);
+foreach (var s in new[] { new Vector3(-1.05f, DeskH + 0.004f, -1.45f + 0.235f), new Vector3(-1.05f, DeskH + 0.004f, -1.45f - 0.235f) }) Box("BinRim", s, new Vector3(0.5f, 0.012f, 0.03f), matGreen, binT);
+foreach (var s in new[] { new Vector3(-1.05f + 0.235f, DeskH + 0.004f, -1.45f), new Vector3(-1.05f - 0.235f, DeskH + 0.004f, -1.45f) }) Box("BinRim", s, new Vector3(0.03f, 0.012f, 0.5f), matGreen, binT);
+Text("BinLabel", "SUBMISSION BIN", new Vector3(-1.05f, DeskH + 0.004f, -1.17f), Quaternion.Euler(90f, 0f, 0f), 0.9f, new Color(0.8f, 0.85f, 0.9f), new Vector2(0.5f, 0.05f), TMPro.TextAlignmentOptions.Center, binT);
+
+// ---------- launch screen on the front wall ----------
+var screenT = T("LaunchScreen", fixtures);
+Box("ScreenBezel", new Vector3(0f, 1.95f, -D / 2f + 0.035f), new Vector3(2.5f, 1.45f, 0.07f), matBlack, screenT);
+Quad("ScreenSurface", new Vector3(0f, 1.95f, -D / 2f + 0.071f), Quaternion.identity, new Vector2(2.4f, 1.35f), matScreen, screenT);
+Text("ScreenTitle", "LAUNCH PAD 01   |   STANDBY", new Vector3(0f, 2.5f, -D / 2f + 0.075f), Quaternion.identity, 3.2f, new Color(0.75f, 0.9f, 1f), new Vector2(2.3f, 0.2f), TMPro.TextAlignmentOptions.Center, screenT);
+Text("ScreenCountdown", "T-00:10:00", new Vector3(0f, 1.4f, -D / 2f + 0.075f), Quaternion.identity, 5f, new Color(0.3f, 1f, 0.5f), new Vector2(2.3f, 0.3f), TMPro.TextAlignmentOptions.Center, screenT);
+// status LEDs under the screen
+for (int i = 0; i < 8; i++) Box("StatusLED", new Vector3(-0.7f + i * 0.2f, 1.17f, -D / 2f + 0.03f), new Vector3(0.06f, 0.02f, 0.02f), i < 6 ? matGreen : matRed, screenT);
+Text("StatusLabel", "FUEL  PWR  GUID  TELEM  RANGE  WX  ARM  HOLD", new Vector3(0f, 1.12f, -D / 2f + 0.03f), Quaternion.identity, 0.8f, new Color(0.7f, 0.75f, 0.8f), new Vector2(2.0f, 0.05f), TMPro.TextAlignmentOptions.Center, screenT);
+// countdown clock panel on the front wall, left of the screen
+Box("ClockPanel", new Vector3(-2.3f, 2.4f, -D / 2f + 0.03f), new Vector3(0.9f, 0.3f, 0.06f), matBlack, fixtures);
+Text("ClockText", "T-00:10:00", new Vector3(-2.3f, 2.4f, -D / 2f + 0.065f), Quaternion.identity, 2.6f, new Color(1f, 0.25f, 0.2f), new Vector2(0.85f, 0.25f), TMPro.TextAlignmentOptions.Center, fixtures);
+Text("ClockLabel", "COUNTDOWN", new Vector3(-2.3f, 2.6f, -D / 2f + 0.03f), Quaternion.identity, 1.0f, new Color(0.7f, 0.75f, 0.8f), new Vector2(0.85f, 0.08f), TMPro.TextAlignmentOptions.Center, fixtures);
+// mission patch / logo panel right of the screen
+Box("LogoPanel", new Vector3(2.3f, 2.4f, -D / 2f + 0.03f), new Vector3(0.9f, 0.3f, 0.06f), matBlack, fixtures);
+Text("LogoText", "VR ROCKET\nMISSION CONTROL", new Vector3(2.3f, 2.4f, -D / 2f + 0.065f), Quaternion.identity, 1.3f, new Color(0.9f, 0.92f, 0.95f), new Vector2(0.85f, 0.25f), TMPro.TextAlignmentOptions.Center, fixtures);
+
+// ---------- help board on the right wall ----------
+var help = T("HelpWall", fixtures);
+Box("HelpFrame", new Vector3(W / 2f - 0.03f, 1.65f, -0.3f), new Vector3(0.04f, 1.1f, 1.5f), matDark, help);
+Box("HelpBoard", new Vector3(W / 2f - 0.055f, 1.65f, -0.3f), new Vector3(0.01f, 1.02f, 1.42f), matWall, help);
+Text("HelpText", "<b>BUILD GUIDE</b>\n\n1. Slide the three tail fins into the slots at the base.\n2. Fit the three wing flaps at the midpoint, swept edge up.\n3. Press the nose cone onto the top.\n4. Insert the motor, nozzle down.\n5. Twist the motor cap until it clicks.\n\nSubmit at the bin, then launch.", new Vector3(W / 2f - 0.065f, 1.65f, -0.3f), Quaternion.Euler(0f, 90f, 0f), 1.6f, new Color(0.1f, 0.1f, 0.12f), new Vector2(1.3f, 0.95f), TMPro.TextAlignmentOptions.TopLeft, help);
+Prop("fire_alarm", new Vector3(-W / 2f + 0.07f, 1.35f, -1.45f), 90f, propsT);
+
+// ---------- outside: apron, launch pad and a full-size rocket seen through the window ----------
+Box("Ground", new Vector3(-40f, -0.06f, 0f), new Vector3(140f, 0.1f, 140f), matGround, outside);
+Cyl("LaunchPad", new Vector3(-30f, 0.15f, 6f), new Vector3(9f, 0.3f, 9f), matPlate, outside);
+Box("GantryTower", new Vector3(-31.6f, 8f, 6f), new Vector3(1.2f, 16f, 1.2f), matDark, outside);
+Box("GantryArm", new Vector3(-30.8f, 13.5f, 6f), new Vector3(1.6f, 0.3f, 0.3f), matDark, outside);
+var bigRocket = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/VRRocket/Prefabs/AssembledRocket_Static.prefab"));
+bigRocket.name = "FullSizeRocket_Static"; bigRocket.transform.SetParent(outside, false); bigRocket.transform.localPosition = new Vector3(-30f, 0.3f, 6f); bigRocket.transform.localScale = Vector3.one * 36f;
+foreach (var c in bigRocket.GetComponentsInChildren<Collider>()) c.enabled = false;
+foreach (var rb in bigRocket.GetComponentsInChildren<Rigidbody>()) UnityEngine.Object.DestroyImmediate(rb);
+foreach (var t in bigRocket.GetComponentsInChildren<Transform>(true)) UnityEditor.GameObjectUtility.SetStaticEditorFlags(t.gameObject, staticFlags);
+
+// ---------- lights: baked sun through the window, one real-time fill, probes, reflection probe ----------
+{
+    var sunGo = new GameObject("Sun_Baked"); sunGo.transform.SetParent(lights, false); sunGo.transform.rotation = Quaternion.Euler(32f, 95f, 0f);
+    var sun = sunGo.AddComponent<Light>(); sun.type = LightType.Directional; sun.intensity = 2.2f; sun.color = new Color(1f, 0.96f, 0.9f); sun.lightmapBakeType = LightmapBakeType.Baked; sun.shadows = LightShadows.Soft;
+    var fillGo = new GameObject("Fill_Realtime"); fillGo.transform.SetParent(lights, false); fillGo.transform.rotation = Quaternion.Euler(55f, -30f, 0f);
+    var fill = fillGo.AddComponent<Light>(); fill.type = LightType.Directional; fill.intensity = 0.35f; fill.color = new Color(1f, 0.98f, 0.95f); fill.lightmapBakeType = LightmapBakeType.Realtime; fill.shadows = LightShadows.None;
+    var probes = new GameObject("LightProbes"); probes.transform.SetParent(lights, false);
+    var lpg = probes.AddComponent<LightProbeGroup>();
+    var list = new System.Collections.Generic.List<Vector3>();
+    foreach (var x in new[] { -3f, -1.5f, 0f, 1.5f, 3f }) foreach (var y in new[] { 0.3f, 1.2f, 2.2f }) foreach (var z in new[] { -2.2f, -1.1f, 0f, 1.1f, 2.2f }) list.Add(new Vector3(x, y, z));
+    lpg.probePositions = list.ToArray();
+    var rpGo = new GameObject("ReflectionProbe"); rpGo.transform.SetParent(lights, false); rpGo.transform.localPosition = new Vector3(0f, 1.4f, 0f);
+    var rp = rpGo.AddComponent<ReflectionProbe>(); rp.mode = UnityEngine.Rendering.ReflectionProbeMode.Baked; rp.size = new Vector3(W, H, D); rp.resolution = 128; rp.boxProjection = true;
+}
+
+// ---------- prefab, workstation, rig ----------
+UnityEditor.PrefabUtility.SaveAsPrefabAssetAndConnect(room, env + "/Prefabs/ControlRoom.prefab", UnityEditor.InteractionMode.AutomatedAction);
+var ws = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/VRRocket/Prefabs/RocketWorkstation.prefab"));
+ws.transform.SetPositionAndRotation(wsAnchor.position, wsAnchor.rotation);
+var rig = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/XRI_Examples/Global/Prefabs/Complete XR Origin Set Up Variant.prefab"));
+rig.transform.SetPositionAndRotation(playerSpawn.position, playerSpawn.rotation);
+foreach (var mp in rig.transform.Find("Locomotion/Move").GetComponents<UnityEngine.XR.Interaction.Toolkit.Locomotion.LocomotionProvider>()) mp.enabled = false;
+foreach (var tp in rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Locomotion.Teleportation.TeleportationProvider>(true)) tp.enabled = false;
+foreach (var t in rig.GetComponentsInChildren<Transform>(true)) if (t.name == "Teleport Interactor") t.gameObject.SetActive(false);
+
+// ---------- lighting settings ----------
+var ls = new LightingSettings(); ls.name = "ControlRoomLighting";
+ls.lightmapper = LightingSettings.Lightmapper.ProgressiveCPU; ls.lightmapResolution = 10f; ls.lightmapMaxSize = 1024; ls.ao = true; ls.directionalityMode = LightmapsMode.NonDirectional; ls.realtimeGI = false; ls.bakedGI = true; ls.lightmapCompression = LightmapCompression.NormalQuality; ls.prioritizeView = false; ls.indirectSampleCount = 128; ls.directSampleCount = 16; ls.environmentSampleCount = 128; ls.maxBounces = 2; ls.filteringMode = LightingSettings.FilterMode.Auto;
+UnityEditor.AssetDatabase.CreateAsset(ls, env + "/ControlRoomLighting.lighting");
+UnityEditor.Lightmapping.lightingSettings = ls;
+
+UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene, scenePath);
+var blist = new System.Collections.Generic.List<UnityEditor.EditorBuildSettingsScene>(UnityEditor.EditorBuildSettings.scenes);
+if (!blist.Exists(s => s.path == scenePath)) blist.Insert(1, new UnityEditor.EditorBuildSettingsScene(scenePath, true));
+UnityEditor.EditorBuildSettings.scenes = blist.ToArray();
+UnityEditor.AssetDatabase.SaveAssets();
+// stats
+int tris = 0; var mats = new System.Collections.Generic.HashSet<Material>();
+foreach (var mf in UnityEngine.Object.FindObjectsByType<MeshFilter>(FindObjectsSortMode.None)) if (mf.sharedMesh != null && mf.gameObject.activeInHierarchy) tris += mf.sharedMesh.triangles.Length / 3;
+foreach (var r in UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None)) if (r.gameObject.activeInHierarchy) foreach (var m in r.sharedMaterials) if (m != null) mats.Add(m);
+sb.AppendLine("scene saved; triangles (all active meshes incl. rig+rocket)=" + tris + " materials=" + mats.Count);
+return sb.ToString();

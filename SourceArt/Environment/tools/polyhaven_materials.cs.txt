@@ -1,0 +1,164 @@
+// Builds URP materials for Poly Haven assets: packs rough/metal into a MetallicSmoothness PNG, converts normal EXR to PNG,
+// copies the albedo, creates the material and remaps the FBX importer. Run through eval_file (no using directives).
+var sb = new System.Text.StringBuilder();
+string projectRoot = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, ".."));
+string srcModels = System.IO.Path.Combine(projectRoot, "SourceArt/Environment/polyhaven");
+string srcTex = System.IO.Path.Combine(projectRoot, "SourceArt/Environment/polyhaven_textures");
+const string envRoot = "Assets/VRRocket/Environment";
+const string scratchTex = envRoot + "/_Scratch/_tex";
+foreach (var f in new[] { "Models", "Textures", "Materials", "Prefabs", "_Scratch/_tex" }) {
+    var parts = f.Split('/'); var cur = envRoot;
+    foreach (var p in parts) { if (!UnityEditor.AssetDatabase.IsValidFolder(cur + "/" + p)) UnityEditor.AssetDatabase.CreateFolder(cur, p); cur += "/" + p; }
+}
+var litShader = Shader.Find("Universal Render Pipeline/Lit");
+
+string FindSrc(string dir, string pattern) {
+    if (!System.IO.Directory.Exists(dir)) return null;
+    var hits = System.IO.Directory.GetFiles(dir, pattern);
+    return hits.Length > 0 ? hits[0] : null;
+}
+
+// Copies a source image into the scratch folder, imports it readable/uncompressed/linear and returns it.
+Texture2D LoadReadable(string srcPath, string tag) {
+    var dst = scratchTex + "/" + tag + "_" + System.IO.Path.GetFileName(srcPath);
+    var abs = System.IO.Path.Combine(projectRoot, dst);
+    System.IO.File.Copy(srcPath, abs, true);
+    UnityEditor.AssetDatabase.ImportAsset(dst, UnityEditor.ImportAssetOptions.ForceSynchronousImport);
+    var ti = UnityEditor.AssetImporter.GetAtPath(dst) as UnityEditor.TextureImporter;
+    ti.isReadable = true; ti.sRGBTexture = false; ti.textureCompression = UnityEditor.TextureImporterCompression.Uncompressed; ti.mipmapEnabled = false; ti.npotScale = UnityEditor.TextureImporterNPOTScale.None; ti.maxTextureSize = 2048;
+    ti.SaveAndReimport();
+    return UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(dst);
+}
+
+void WritePng(Texture2D tex, string assetPath, bool isNormal, bool sRGB) {
+    var abs = System.IO.Path.Combine(projectRoot, assetPath);
+    System.IO.File.WriteAllBytes(abs, tex.EncodeToPNG());
+    UnityEditor.AssetDatabase.ImportAsset(assetPath, UnityEditor.ImportAssetOptions.ForceSynchronousImport);
+    var ti = UnityEditor.AssetImporter.GetAtPath(assetPath) as UnityEditor.TextureImporter;
+    ti.textureType = isNormal ? UnityEditor.TextureImporterType.NormalMap : UnityEditor.TextureImporterType.Default;
+    ti.sRGBTexture = sRGB; ti.maxTextureSize = 1024; ti.mipmapEnabled = true; ti.textureCompression = UnityEditor.TextureImporterCompression.Compressed;
+    ti.SaveAndReimport();
+}
+
+void CopyAlbedo(string src, string assetPath) {
+    var abs = System.IO.Path.Combine(projectRoot, assetPath);
+    System.IO.File.Copy(src, abs, true);
+    UnityEditor.AssetDatabase.ImportAsset(assetPath, UnityEditor.ImportAssetOptions.ForceSynchronousImport);
+    var ti = UnityEditor.AssetImporter.GetAtPath(assetPath) as UnityEditor.TextureImporter;
+    ti.sRGBTexture = true; ti.maxTextureSize = 1024; ti.textureCompression = UnityEditor.TextureImporterCompression.Compressed; ti.SaveAndReimport();
+}
+
+// Builds albedo/normal/metalsmooth(/emission) for one texture set and returns a URP Lit material.
+Material BuildMaterial(string setName, string diff, string nor, string rough, string metal, string ao, string emission, string outDir, string matPath, bool linearNormalFromExr) {
+    var texDir = outDir;
+    if (!UnityEditor.AssetDatabase.IsValidFolder(texDir)) { var parent = System.IO.Path.GetDirectoryName(texDir).Replace('\\','/'); UnityEditor.AssetDatabase.CreateFolder(parent, System.IO.Path.GetFileName(texDir)); }
+    var mat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(matPath);
+    if (mat == null) { mat = new Material(litShader); UnityEditor.AssetDatabase.CreateAsset(mat, matPath); }
+    mat.shader = litShader;
+    // albedo
+    if (diff != null) {
+        var albedoPath = texDir + "/" + setName + "_albedo" + System.IO.Path.GetExtension(diff).ToLower();
+        CopyAlbedo(diff, albedoPath);
+        mat.SetTexture("_BaseMap", UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(albedoPath));
+    }
+    // normal
+    if (nor != null) {
+        var normalPath = texDir + "/" + setName + "_normal.png";
+        if (nor.ToLower().EndsWith(".png")) { System.IO.File.Copy(nor, System.IO.Path.Combine(projectRoot, normalPath), true); UnityEditor.AssetDatabase.ImportAsset(normalPath, UnityEditor.ImportAssetOptions.ForceSynchronousImport); var ti = UnityEditor.AssetImporter.GetAtPath(normalPath) as UnityEditor.TextureImporter; ti.textureType = UnityEditor.TextureImporterType.NormalMap; ti.maxTextureSize = 1024; ti.SaveAndReimport(); }
+        else { var src = LoadReadable(nor, setName); var px = src.GetPixels(); var outTex = new Texture2D(src.width, src.height, TextureFormat.RGB24, false, true); outTex.SetPixels(px); outTex.Apply(); WritePng(outTex, normalPath, true, false); UnityEngine.Object.DestroyImmediate(outTex); }
+        mat.SetTexture("_BumpMap", UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(normalPath));
+        mat.EnableKeyword("_NORMALMAP");
+    }
+    // metallic (R) + smoothness (A = 1 - rough)
+    if (rough != null || metal != null) {
+        Texture2D r = rough != null ? LoadReadable(rough, setName) : null;
+        Texture2D m = metal != null ? LoadReadable(metal, setName) : null;
+        var w = r != null ? r.width : m.width; var h = r != null ? r.height : m.height;
+        var rp = r != null ? r.GetPixels() : null; var mp = m != null ? m.GetPixels() : null;
+        var outPx = new Color[w * h];
+        for (int i = 0; i < outPx.Length; i++) {
+            float ro = rp != null ? rp[i].r : 0.5f;
+            float me = mp != null ? (mp.Length == outPx.Length ? mp[i].r : 0f) : 0f;
+            outPx[i] = new Color(me, 0f, 0f, 1f - Mathf.Clamp01(ro));
+        }
+        var outTex = new Texture2D(w, h, TextureFormat.RGBA32, false, true); outTex.SetPixels(outPx); outTex.Apply();
+        var msPath = texDir + "/" + setName + "_metalsmooth.png";
+        WritePng(outTex, msPath, false, false); UnityEngine.Object.DestroyImmediate(outTex);
+        mat.SetTexture("_MetallicGlossMap", UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(msPath));
+        mat.SetFloat("_Smoothness", 1f); mat.SetFloat("_Metallic", 1f);
+        mat.EnableKeyword("_METALLICSPECGLOSSMAP");
+    }
+    if (ao != null) {
+        var aoPath = texDir + "/" + setName + "_ao" + System.IO.Path.GetExtension(ao).ToLower();
+        System.IO.File.Copy(ao, System.IO.Path.Combine(projectRoot, aoPath), true); UnityEditor.AssetDatabase.ImportAsset(aoPath, UnityEditor.ImportAssetOptions.ForceSynchronousImport);
+        var ti = UnityEditor.AssetImporter.GetAtPath(aoPath) as UnityEditor.TextureImporter; ti.sRGBTexture = false; ti.maxTextureSize = 1024; ti.SaveAndReimport();
+        mat.SetTexture("_OcclusionMap", UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(aoPath)); mat.EnableKeyword("_OCCLUSIONMAP");
+    }
+    if (emission != null) {
+        var emPath = texDir + "/" + setName + "_emission" + System.IO.Path.GetExtension(emission).ToLower();
+        CopyAlbedo(emission, emPath);
+        mat.SetTexture("_EmissionMap", UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(emPath));
+        mat.SetColor("_EmissionColor", Color.white * 2.5f); mat.EnableKeyword("_EMISSION");
+        mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.BakedEmissive;
+    }
+    UnityEditor.EditorUtility.SetDirty(mat);
+    return mat;
+}
+
+// ---------- props ----------
+var props = new[] { "steel_frame_shelves_03", "worn_metal_rack", "metal_tool_chest", "metal_toolbox", "bench_vice_01", "Television_01", "fire_alarm", "rollershutter_door", "industrial_pipe_lamp", "mounted_fluorescent_lights" };
+foreach (var id in props) {
+    try {
+        var srcDir = System.IO.Path.Combine(srcModels, id);
+        var modelPath = envRoot + "/Models/" + id + ".fbx";
+        var scratchFbx = envRoot + "/_Scratch/" + id + "/" + id + "_1k.fbx";
+        if (UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(modelPath) == null) {
+            if (UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(scratchFbx) != null) UnityEditor.AssetDatabase.MoveAsset(scratchFbx, modelPath);
+            else { System.IO.File.Copy(FindSrc(srcDir, "*.fbx"), System.IO.Path.Combine(projectRoot, modelPath), true); UnityEditor.AssetDatabase.ImportAsset(modelPath, UnityEditor.ImportAssetOptions.ForceSynchronousImport); }
+        }
+        var imp = UnityEditor.AssetImporter.GetAtPath(modelPath) as UnityEditor.ModelImporter;
+        imp.useFileScale = false; imp.globalScale = 0.01f; imp.importCameras = false; imp.importLights = false; imp.isReadable = false; imp.materialImportMode = UnityEditor.ModelImporterMaterialImportMode.ImportStandard;
+        imp.SaveAndReimport();
+        var go = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(modelPath);
+        var matNames = new System.Collections.Generic.List<string>();
+        foreach (var r in go.GetComponentsInChildren<Renderer>()) foreach (var m in r.sharedMaterials) if (m != null && !matNames.Contains(m.name)) matNames.Add(m.name);
+        var texOut = envRoot + "/Textures/" + id;
+        // base set
+        string diff = FindSrc(srcDir, id + "_diff_1k.*"), nor = FindSrc(srcDir, id + "_nor_gl_1k.*"), rough = FindSrc(srcDir, id + "_rough*_1k.*"), metal = FindSrc(srcDir, id + "_metal*_1k.*"), emission = FindSrc(srcDir, id + "_emission_1k.*");
+        var baseMat = BuildMaterial(id, diff, nor, rough, metal, null, emission, texOut, envRoot + "/Materials/" + id + ".mat", true);
+        foreach (var mn in matNames) {
+            Material target = baseMat;
+            if (mn.EndsWith("_glass")) {
+                var gp = envRoot + "/Materials/" + mn + ".mat"; var g = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(gp);
+                if (g == null) { g = new Material(litShader); UnityEditor.AssetDatabase.CreateAsset(g, gp); }
+                g.SetFloat("_Surface", 1f); g.SetFloat("_Blend", 0f); g.SetOverrideTag("RenderType", "Transparent"); g.renderQueue = 3000; g.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha); g.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha); g.SetInt("_ZWrite", 0); g.EnableKeyword("_SURFACE_TYPE_TRANSPARENT"); g.SetColor("_BaseColor", new Color(0.9f, 0.95f, 1f, 0.35f)); g.SetFloat("_Smoothness", 0.95f); g.SetFloat("_Metallic", 0f);
+                if (emission != null) { g.SetColor("_EmissionColor", Color.white * 3f); g.EnableKeyword("_EMISSION"); g.globalIlluminationFlags = MaterialGlobalIlluminationFlags.BakedEmissive; }
+                target = g;
+            } else if (mn != id) {
+                var suffix = mn.Substring(id.Length + 1);
+                string d2 = FindSrc(srcDir, id + "_" + suffix + "_diff_1k.*"), n2 = FindSrc(srcDir, id + "_" + suffix + "_nor_gl_1k.*") ?? nor, r2 = FindSrc(srcDir, id + "_" + suffix + "_rough_1k.*") ?? rough, m2 = FindSrc(srcDir, id + "_" + suffix + "_metal_1k.*") ?? metal;
+                if (d2 != null) target = BuildMaterial(mn, d2, n2, r2, m2, null, null, texOut, envRoot + "/Materials/" + mn + ".mat", true);
+            }
+            imp.AddRemap(new UnityEditor.AssetImporter.SourceAssetIdentifier(typeof(Material), mn), target);
+        }
+        imp.SaveAndReimport();
+        sb.AppendLine(id + ": materials " + string.Join(",", matNames) + " ok");
+    } catch (System.Exception ex) { sb.AppendLine(id + ": FAILED " + ex.Message); }
+}
+
+// ---------- surfaces (tiling materials) ----------
+var surfaces = new[] { ("painted_plaster_wall", 2.0f), ("smooth_concrete_floor", 2.5f), ("metal_plate", 1.0f), ("rubber_tiles", 1.0f) };
+foreach (var (id, tile) in surfaces) {
+    try {
+        var srcDir = System.IO.Path.Combine(srcTex, id);
+        var mat = BuildMaterial(id, FindSrc(srcDir, id + "_diff_1k.*"), FindSrc(srcDir, id + "_nor_gl_1k.*"), FindSrc(srcDir, id + "_rough_1k.*"), null, FindSrc(srcDir, id + "_ao_1k.*"), null, envRoot + "/Textures/" + id, envRoot + "/Materials/Surface_" + id + ".mat", false);
+        mat.SetTextureScale("_BaseMap", Vector2.one * tile);
+        UnityEditor.EditorUtility.SetDirty(mat);
+        sb.AppendLine("surface " + id + " ok");
+    } catch (System.Exception ex) { sb.AppendLine(id + ": FAILED " + ex.Message); }
+}
+UnityEditor.AssetDatabase.SaveAssets();
+// clean scratch textures
+UnityEditor.AssetDatabase.DeleteAsset(scratchTex);
+UnityEditor.AssetDatabase.SaveAssets();
+return sb.ToString();

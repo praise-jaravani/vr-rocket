@@ -103,3 +103,31 @@ One dated entry per milestone (SPEC.md section 11): what works, what was verifie
 **Notes**
 - Gating is not implemented yet (M6), so the cap can be seated on a bare tube, as M3 requires.
 - Dynamic attach snaps to the collider surface, so the hand-to-origin offset of a held cap depends on where it was grabbed.
+
+## 2026-10-08: Environment v1, control room and workstation (done)
+
+Separate from the rocket milestones. Rocket prefabs and scripts untouched; `Dev_Interactions.unity` untouched.
+
+**What was built**
+- `Assets/VRRocket/Environment/Prefabs/ControlRoom.prefab` and `Assets/VRRocket/Scenes/Env_ControlRoom.unity` (second in the build list). Room per SPEC 3.1: workbench with the RocketWorkstation at the back, mission control console with bin, Submit, Launch, Abort and puzzle placeholders at the front, 2.4 m emissive launch screen on the front wall with a countdown clock and mission panel beside it, window with an outside view and an exit door on the left, help board and roller shutter door on the right, LED ceiling panels and cove strips, rubber standing mat. Both work surfaces at 0.95 m, checked against the workstation's stand and tray. No chairs. Seven anchors (PlayerSpawn, WorkstationAnchor, MissionDeskAnchor, BinAnchor, LaunchScreenAnchor, HelpWallAnchor, BlueprintAnchor). Full description in `Docs/ENVIRONMENT.md`, credits in `Docs/ASSET_CREDITS.md`, screenshots in `Docs/Screenshots/`.
+- Extra: a concrete apron, launch pad, gantry and a full-size (36x) static copy of the assembled rocket 30 m outside the window, so the user sees what they are building.
+
+**Style decision**: photoreal Poly Haven props on primitive-built architecture dressed with Poly Haven PBR surfaces. The rocket parts are photoreal and the mood is "real mission control plus clean workshop", so stylised kits would clash; and primitives keep the architecture cheap and trivially editable. The stylised kits (Quaternius Modular Sci-Fi MegaKit and Essentials, Kenney Space and Furniture kits) could not be fetched without a click-through on itch.io / kenney.nl, so no side-by-side scratch scene was made; if you want that comparison, drop their zips in `specs/` and I will stage it.
+
+**Assets considered**
+- Taken: steel_frame_shelves_03, worn_metal_rack, metal_tool_chest, metal_toolbox, bench_vice_01, industrial_pipe_lamp, Television_01 (as the blueprint CRT), fire_alarm, rollershutter_door (plain variant), mounted_fluorescent_lights (one tube variant, 2.5k tris instead of 17.8k); textures painted_plaster_wall, smooth_concrete_floor (albedo dropped for a neutral grey epoxy look, normal and roughness kept), metal_plate, rubber_tiles; HDRI qwantani_puresky 2K.
+- Rejected: metal_office_desk (0.79 m sitting height, raising or scaling it looks wrong, so both desks are built from primitives at 0.95 m), steel_frame_shelves_01 (redundant with 03), tool_cart (29k tris for a background prop), industrial_storage_cart (19k tris, does not fit a clean room). Poly Haven's 14k-tri toolbox and 13k-tri tool chest were kept because they sit at the workbench where the user looks closely.
+- Not found as free CC0/CC BY within the bounded search: a proper console desk with screens, a window frame, a door, a countdown clock. All built from primitives plus TMP text instead; they are the obvious things for the teammates to replace.
+- Unity Asset Store items were not used (they need your account); none was needed for v1.
+
+**Pipeline**: a Poly Haven material builder (scratch editor script, kept in `SourceArt/Environment/tools/`) converts the EXR roughness/metal maps into URP metallic-smoothness PNGs, converts normal EXRs to 8-bit PNG and remaps each FBX importer. Props import with file scale off and global scale 0.01 (Poly Haven FBX vertices are in centimetres).
+
+**Measured at commit** (room hierarchy only, Editor figures)
+- Triangles: 75,418 for the room including the outside pad and full-size rocket (about 10k of that is the big rocket); the workstation adds 12,485; XR rig controllers add a few thousand.
+- Materials: 38 on room renderers, of which 5 are the rocket's (outside copy), 4 the XRI button's and 3 puzzle-wire dots; 26 are the room's own.
+- Textures: 52, all 1K except the 2K HDRI cubemap at 1024. Editor memory 125 MB (uncompressed in the Editor); estimated 33 MB on Quest at ASTC 6x6. One 1024 lightmap, 2.7 MB.
+- Added to the repo: about 58 MB under Assets/VRRocket/Environment, 82 MB of originals under SourceArt/Environment, 5 MB of scene and lightmaps. Total about 145 MB.
+- Lighting baked (Progressive CPU, 10 texels/unit). One real-time directional fill at 0.35 with no shadows; everything else baked or emissive. Light probes and a baked reflection probe cover the dynamic parts.
+- Headset frame rate not measured here; that is Praise's check on the Quest.
+
+**Known rough edges for v1.1**: the CRT's screen face orientation has not been confirmed in a close-up; the puzzle panel and side screens are flat placeholders; the roller door and rack are a little rusty for the palette; the bin has no lid or animation (M7 and the teammates own that).

@@ -1,0 +1,1 @@
+Editor scripts used to build Environment v1. The .cs.txt files run through the Unity CLI/MCP eval_file command (no using directives; fully qualified names). The .py files fetch Poly Haven assets through the public API.
