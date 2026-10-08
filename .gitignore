@@ -99,3 +99,6 @@ crashlytics-build.properties
 
 # Generated IDE solution (Unity 6.3+)
 *.slnx
+
+# Inbox for material handed to the agent; contents are copied into Docs/ and SourceArt/
+/specs/
