@@ -96,3 +96,6 @@ crashlytics-build.properties
 *.preformat.bak
 *.preformat.bak.meta
 
+
+# Generated IDE solution (Unity 6.3+)
+*.slnx
