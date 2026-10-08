@@ -78,13 +78,13 @@ Layout, recreated from treatment Figure 1.2. The user spawns in the middle facin
 
 ### 3.2 Development scene [PRAISE]
 
-The Creepy Cat "3D Scifi Kit Starter Kit" is imported and is the placeholder room until the final scene arrives.
+The dev room is greybox primitives and stays that way. Environment art belongs to the teammates (section 3.1); no art kit is a dependency of this project (decision of 8 Oct 2026).
 
-- Create `Assets/VRRocket/Scenes/Dev_Interactions.unity`. Never edit the kit's own demo scenes or prefabs in place. Copy what is needed.
-- Build one small room from the kit, with one desk-height surface for the workstation and a second for the mission control stubs.
-- Use the XR rig prefab `Assets/XRI_Examples/Global/Prefabs/Complete XR Origin Set Up Variant.prefab`. Disable teleport and continuous move for this scene.
-- The kit is built for PC as well as mobile. Keep the dev room cheap: few lights, no real-time shadows from more than one light, no post-processing that the Quest cannot afford.
-- Everything rocket-related lives in one prefab (section 8.1) so it can be dropped into the teammates' final scene unchanged. Nothing in the rocket code may reference Creepy Cat assets.
+- `Assets/VRRocket/Scenes/Dev_Interactions.unity`: a floor, one desk-height surface for the workstation and a second for the mission control stubs, built from Unity primitives.
+- Use the XR rig prefab `Assets/XRI_Examples/Global/Prefabs/Complete XR Origin Set Up Variant.prefab`. Teleport and continuous move are disabled in this scene.
+- Keep the dev room cheap: one directional light, no post-processing that the Quest cannot afford.
+- Everything rocket-related lives in one prefab (section 8.1) so it can be dropped into the teammates' final scene unchanged. Nothing in the rocket code may reference environment assets.
+- `Dev_Interactions` is first in the build scene list so Build And Run opens it on the headset.
 
 ## 4. The rocket [PRAISE]
 
@@ -208,7 +208,7 @@ Specifics:
 
 - **Fins.** All three slots are identical. A fin can never end up wrong.
 - **Flaps.** All six slots accept any flap. Position (Low or Mid) and orientation (Up or Down) are recorded at seating and are never corrected or signalled. Glow, click and vibration must be exactly the same for right and wrong placements.
-- **Nose cone.** While guided it is pulled toward the seat (the displayed distance is a fraction of the hand's distance, `noseMagnetism`), so it feels drawn down. It is the last airframe part in the blueprint order, but this is not enforced.
+- **Nose cone.** While guided it is pulled toward the seat (the displayed distance is a fraction of the hand's distance, `noseMagnetism`; 0.5 shows the nose at half the hand's distance), so it feels drawn down. The pull fades in along the guide: at the guide's outer end the nose follows the hand exactly, and the fraction reaches the full `noseMagnetism` value at the seat. There must be no visible jump when the guide engages or breaks away. It is the last airframe part in the blueprint order, but this is not enforced.
 - **Motor.** The reversed case is the only rejection the user is likely to meet. It must be completely silent.
 
 ### 5.4 Motor cap twist
@@ -413,7 +413,7 @@ Assets/VRRocket/
   Settings/      AssemblyTuning.asset, FeedbackLibrary.asset
 ```
 
-Read-only folders: `Assets/XRI_Examples`, `Assets/Samples`, and the Creepy Cat kit folder. Copy from them, never edit them.
+Read-only folders: `Assets/XRI_Examples` and `Assets/Samples`. Copy from them, never edit them.
 
 ### 10.2 Scripts and responsibilities
 
@@ -438,10 +438,10 @@ Checked against this project's own files:
 
 - Interactable types are in `UnityEngine.XR.Interaction.Toolkit.Interactables`, interactors in `...Interactors`, grab transformers in `...Transformers`.
 - `XRBaseGrabTransformer.Process` has the signature given in section 5.2.
-- The XR Interaction Simulator sample is imported, so behaviour can be exercised in Play mode without a headset.
-- The project's interaction layer list contains only `Default`. Add a `RocketPart` layer and use it to stop far and ray interactors from selecting parts.
-
-Not checked: haptic impulse API, and exactly how the rig's near-far interactors are configured. Read the package source and the rig prefab before relying on either.
+- The XR Interaction Simulator sample is imported, so behaviour can be exercised in Play mode without a headset. `XRDeviceSimulatorSettings` auto-instantiates it in the Editor only.
+- **Near-only grab, as built.** The rig's hands are single `NearFarInteractor`s (sphere caster for near, curve caster for far) sharing one interaction layer mask, so an interaction layer cannot separate near from far. Instead every grabbable rocket object carries `NearOnlyGrabFilter`, an `IXRSelectFilter` and `IXRHoverFilter` on the interactable that refuses hover and select when the interactor's own transform is further than `nearGrabDistance` (0.12 m, tunable) from the object's colliders, and always refuses ray and socket interactors. Blocking hover means a part pointed at from far away shows no highlight, no ray cursor and no glow. The filter measures from the interactor transform, not its attach transform, because `NearFarInteractor` parks the attach transform at the far-cast hit point. An existing selection is never cancelled by the filter. The same component and rule apply to the complete rocket once it is grabbable and to the seated cap. Parts also carry the `RocketPart` interaction layer (index 1) alongside `Default` so the prefab works in any scene without rig edits.
+- Haptics: `XRBaseInputInteractor.SendHapticImpulse(float amplitude, float duration)` on the interactor holding the part (wraps `HapticImpulsePlayer`). Confirmed in the 3.4.0 package source.
+- `XRGrabInteractable` adds its default `XRGeneralGrabTransformer` only if no single transformer is registered by the first update, and it unparents a held object, restoring the grab-time parent on drop. `GuideGrabTransformer` accounts for both.
 
 ### 10.4 Tuning asset
 

@@ -13,6 +13,8 @@ namespace VRRocket
     /// orientation tolerance the part locks to the point's axis and slides between the seat and guideLength. Break away: sideways
     /// drift or pulling past the end releases the guide. Seat: releasing while guided animates to the seat and attaches.
     /// Remove: grabbing an attached part re-enters the guide at depth 0; pulling past guideLength detaches it.
+    /// A part may replace the attached-grab behaviour through <see cref="IAttachedGrabHandler"/> (the motor cap twist).
+    /// Transitions between free and guided poses are eased over guideBlendDuration so nothing jumps (SPEC.md 5.3).
     /// Registered in Start, after XRGrabInteractable adds its default transformer in Awake, so this one runs last and wins.
     /// </summary>
     [RequireComponent(typeof(RocketPart))]
@@ -26,15 +28,22 @@ namespace VRRocket
 
         RocketPart m_Part;
         XRGrabInteractable m_Grab;
+        RocketGrabInteractable m_RocketGrab;
         Rigidbody m_Body;
         Collider[] m_OwnColliders;
+        IAttachedGrabHandler m_Handler;
         readonly List<Collider> m_IgnoredColliders = new List<Collider>(32);
 
         AttachPoint m_Point;
         Quaternion m_SeatedRotation;
         bool m_Guided;
         bool m_FromAttached;
+        bool m_HandlerActive;
         Coroutine m_SeatRoutine;
+
+        bool m_Blending;
+        float m_BlendStart;
+        Pose m_BlendFrom;
 
         public AssemblyTuning tuning
         {
@@ -51,6 +60,7 @@ namespace VRRocket
         }
 
         public bool isGuided => m_Guided;
+        public bool isHandlerActive => m_HandlerActive;
         public AttachPoint guidePoint => m_Point;
 
         void Awake()
@@ -59,13 +69,12 @@ namespace VRRocket
             m_Grab = GetComponent<XRGrabInteractable>();
             m_Body = GetComponent<Rigidbody>();
             m_OwnColliders = GetComponentsInChildren<Collider>();
+            m_Handler = GetComponent<IAttachedGrabHandler>();
             m_RocketGrab = m_Grab as RocketGrabInteractable;
             if (m_RocketGrab != null) m_RocketGrab.selectEntering += OnSelectEntering;
             else Debug.LogError("GuideGrabTransformer needs a RocketGrabInteractable so it can hook the grab before the rigidbody state is recorded.", this);
             m_Grab.selectExited.AddListener(OnSelectExited);
         }
-
-        RocketGrabInteractable m_RocketGrab;
 
         protected override void Start()
         {
@@ -91,6 +100,9 @@ namespace VRRocket
 
         float WorldScale => m_Part.transform.lossyScale.x;
 
+        /// <summary>Where the part rests when seated on the current point (the attach point, plus any handler offset along the axis).</summary>
+        Vector3 SeatPosition => m_Point.transform.position + m_Point.GuideAxisWorld * ((m_Handler != null ? m_Handler.seatOffset : 0f) * WorldScale);
+
         // ---- grab lifecycle ----
 
         void OnSelectEntering(SelectEnterEventArgs args)
@@ -105,31 +117,56 @@ namespace VRRocket
                 m_SeatRoutine = null;
                 FinishSeat();
             }
+            m_Blending = false;
             if (m_Part.state == PartState.Attached && m_Part.attachedTo != null)
             {
                 m_Point = m_Part.attachedTo;
                 m_SeatedRotation = transform.rotation;
                 m_Body.isKinematic = false;
-                m_Guided = true;
                 m_FromAttached = true;
-                m_Part.SetGuided();
-                // collisions with the rocket are already ignored from when it seated
+                m_HandlerActive = false;
+                m_Guided = false;
+                // The handler has to be told after XRI has registered the interactor, which happens after this callback,
+                // so defer the decision to the first Process step.
+                m_PendingAttachedGrab = true;
             }
             else
             {
                 m_Guided = false;
                 m_FromAttached = false;
+                m_HandlerActive = false;
+                m_PendingAttachedGrab = false;
                 m_Point = null;
             }
         }
 
+        bool m_PendingAttachedGrab;
+
         void OnSelectExited(SelectExitEventArgs args)
         {
             if (m_Grab.interactorsSelecting.Count > 0) return; // still held by the other hand
+            m_PendingAttachedGrab = false;
+            if (!isActiveAndEnabled || !gameObject.activeInHierarchy)
+            {
+                // XRBaseInteractable.OnDisable releases a held object while it is being deactivated (scene unload, part
+                // disabled). Re-parenting or starting coroutines there throws, so only drop the transient state.
+                m_HandlerActive = false;
+                m_Guided = false;
+                m_Blending = false;
+                return;
+            }
+            if (m_HandlerActive)
+            {
+                // Still attached (the cap stays seated). XRGrabInteractable throws in the manager's LateUpdate, after this
+                // call, so suppress the throw, and put the part back to kinematic at its rest pose.
+                m_HandlerActive = false;
+                m_Handler.OnAttachedGrabEnd();
+                m_Grab.throwOnDetach = false;
+                FinishSeat();
+                return;
+            }
             if (m_Guided)
             {
-                // XRGrabInteractable throws in the manager's LateUpdate, after this call. The part is about to become
-                // kinematic for the seat animation, so suppress the throw for this release (re-enabled on the next grab).
                 m_Grab.throwOnDetach = false;
                 m_Guided = false;
                 m_SeatRoutine = StartCoroutine(SeatRoutine());
@@ -150,6 +187,34 @@ namespace VRRocket
             var t = tuning;
             if (t == null) return;
             var s = WorldScale;
+
+            if (m_PendingAttachedGrab)
+            {
+                m_PendingAttachedGrab = false;
+                if (m_Handler != null && m_Handler.OnAttachedGrabBegin(m_Part, m_Point, m_Grab))
+                {
+                    m_HandlerActive = true;
+                }
+                else
+                {
+                    m_Guided = true;
+                    m_Part.SetGuided();
+                }
+            }
+
+            if (m_HandlerActive)
+            {
+                var result = m_Handler.ProcessAttachedGrab(m_Grab, ref targetPose);
+                if (result == AttachedGrabResult.Detach)
+                {
+                    m_HandlerActive = false;
+                    m_Handler.OnAttachedGrabEnd();
+                    Detach();
+                    // from here the part follows the hand; targetPose is already the free pose from the general transformer
+                }
+                ApplyBlend(ref targetPose, t);
+                return;
+            }
 
             if (!m_Guided)
             {
@@ -177,7 +242,7 @@ namespace VRRocket
 
             if (m_Guided)
             {
-                var seat = m_Point.transform.position;
+                var seat = SeatPosition;
                 var axis = m_Point.GuideAxisWorld;
                 var depth = GuideMath.Depth(targetPose.position, seat, axis);
                 var sideways = GuideMath.Sideways(targetPose.position, seat, axis);
@@ -190,21 +255,27 @@ namespace VRRocket
                     if (depth > guideLength)
                     {
                         Detach();
+                        ApplyBlend(ref targetPose, t);
                         return;
                     }
                 }
                 else if (GuideMath.ShouldBreak(depth, sideways, guideLength, breakRadius))
                 {
                     ReleaseGuide();
+                    ApplyBlend(ref targetPose, t);
                     return;
                 }
 
-                var fraction = m_Part.partType == PartType.NoseCone ? t.noseMagnetism : 1f;
+                // Nose magnetism fades in along the guide: exact follow at the outer end, full pull at the seat (SPEC 5.3).
+                var fraction = 1f;
+                if (m_Part.partType == PartType.NoseCone && guideLength > 0f)
+                    fraction = Mathf.Lerp(t.noseMagnetism, 1f, Mathf.Clamp01(depth / guideLength));
                 targetPose.position = GuideMath.GuidedPosition(seat, axis, depth, guideLength, fraction);
                 targetPose.rotation = m_SeatedRotation;
-                // keep the point lit while guided
                 m_Point.RequestGlow(1f);
             }
+
+            ApplyBlend(ref targetPose, t);
         }
 
         bool OrientationOk(AttachPoint point, Quaternion heldRotation, AssemblyTuning t)
@@ -216,6 +287,28 @@ namespace VRRocket
 
         // ---- transitions ----
 
+        void StartBlend()
+        {
+            m_BlendFrom = new Pose(transform.position, transform.rotation);
+            m_BlendStart = Time.time;
+            m_Blending = true;
+        }
+
+        void ApplyBlend(ref Pose targetPose, AssemblyTuning t)
+        {
+            if (!m_Blending) return;
+            var duration = t.guideBlendDuration;
+            var k = duration > 0f ? (Time.time - m_BlendStart) / duration : 1f;
+            if (k >= 1f)
+            {
+                m_Blending = false;
+                return;
+            }
+            k = Mathf.SmoothStep(0f, 1f, k);
+            targetPose.position = Vector3.Lerp(m_BlendFrom.position, targetPose.position, k);
+            targetPose.rotation = Quaternion.Slerp(m_BlendFrom.rotation, targetPose.rotation, k);
+        }
+
         void Engage(AttachPoint point, Quaternion heldRotation)
         {
             m_Point = point;
@@ -224,6 +317,7 @@ namespace VRRocket
             m_FromAttached = false;
             m_Part.SetGuided();
             SetRocketCollisionsIgnored(true);
+            StartBlend();
             AssemblyEvents.RaiseGuideEngaged(m_Part, point);
         }
 
@@ -234,6 +328,7 @@ namespace VRRocket
             m_Point = null;
             m_Part.SetFree();
             SetRocketCollisionsIgnored(false);
+            StartBlend();
             AssemblyEvents.RaiseGuideReleased(m_Part, point);
         }
 
@@ -247,6 +342,7 @@ namespace VRRocket
             m_Part.SetFree();
             transform.SetParent(m_Part.homeParent, true);
             SetRocketCollisionsIgnored(false);
+            StartBlend();
             AssemblyEvents.RaisePartRemoved(m_Part, point);
         }
 
@@ -267,8 +363,7 @@ namespace VRRocket
             {
                 elapsed += Time.deltaTime;
                 var k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
-                var seat = m_Point.transform.position;
-                transform.SetPositionAndRotation(Vector3.Lerp(startPos, seat, k), Quaternion.Slerp(startRot, m_SeatedRotation, k));
+                transform.SetPositionAndRotation(Vector3.Lerp(startPos, SeatPosition, k), Quaternion.Slerp(startRot, m_SeatedRotation, k));
                 yield return null;
             }
             m_SeatRoutine = null;
@@ -279,11 +374,17 @@ namespace VRRocket
         void FinishSeat()
         {
             if (m_Point == null) return;
+            if (!m_Body.isKinematic)
+            {
+                m_Body.linearVelocity = Vector3.zero;
+                m_Body.angularVelocity = Vector3.zero;
+            }
             m_Body.isKinematic = true;
-            transform.SetPositionAndRotation(m_Point.transform.position, m_SeatedRotation);
+            transform.SetPositionAndRotation(SeatPosition, m_HandlerActive || m_FromAttached ? transform.rotation : m_SeatedRotation);
             transform.SetParent(m_Point.transform, true);
             m_Point.SetAttached(m_Part);
             m_Part.SetAttached(m_Point);
+            m_FromAttached = false;
         }
 
         void SetRocketCollisionsIgnored(bool ignore)

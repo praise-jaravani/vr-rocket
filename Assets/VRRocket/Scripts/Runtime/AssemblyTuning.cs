@@ -28,7 +28,10 @@ namespace VRRocket
         [Header("Seating")]
         public float seatDuration = 0.12f;
         public float seatDurationMotor = 0.30f;
-        [Range(0f, 1f)] public float noseMagnetism = 0.5f;
+        [Range(0f, 1f), Tooltip("Fraction of the hand's distance shown at the seat while guiding the nose. Fades to 1 at the guide's outer end.")]
+        public float noseMagnetism = 0.5f;
+        [Tooltip("Seconds over which the part eases between free and guided poses, so engaging and breaking away never jump.")]
+        public float guideBlendDuration = 0.1f;
 
         [Header("Motor cap twist")]
         public float capLockAngle = 180f;

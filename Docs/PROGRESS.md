@@ -72,3 +72,34 @@ One dated entry per milestone (SPEC.md section 11): what works, what was verifie
 - XRGrabInteractable unparents a held object and restores the grab-time parent on drop; the transformer re-parents a pulled-off part to its tray group after the drop.
 - Part-side glow (the "should" in SPEC 6) not done yet; planned for M8 polish.
 - Teleporting a controller through the tray in tests sweeps parts off the desk via the rig's Pusher bodies; harmless (they respawn) but tests park the hand away from the tray first.
+
+## 2026-10-08: Decisions applied after M2
+
+- Creepy Cat kit and both `.unitypackage` archives deleted; the dev room stays greybox. SPEC.md 3.2 and 10.1 and CLAUDE.md updated; no art kit is a dependency.
+- Near-only distance filter accepted; SPEC.md 10.3 rewritten to describe it. It already blocks hover as well as select, so a far-pointed part shows no highlight, ray cursor or glow (verified: IsHoverPossible false at 0.20 m and 0.58 m).
+- noseMagnetism confirmed in the literal sense. New requirement in SPEC.md 5.3: the pull fades in along the guide (exact follow at the outer end, full value at the seat) and engaging or breaking away never jumps. Implemented as `fraction = Lerp(noseMagnetism, 1, depth / guideLength)` plus a `guideBlendDuration` (0.1 s, tunable) ease between free and guided poses on engage, release and detach.
+- `Dev_Interactions` is now first in the build scene list.
+
+## 2026-10-08: M3 Motor cap twist (done)
+
+**What works**
+- `IAttachedGrabHandler`: a part can take over what happens when it is grabbed while attached, and offset where it rests when seated. `GuideGrabTransformer` delegates to it; everything else (guide to the seat, seat animation, pull-off detach) is shared with the other parts.
+- `MotorCapTwist` on the MotorCap prefab (SPEC 5.4): seats unlocked `capUnlockedGap` proud of the tube with the soft seat sound and 0.2/0.04 haptic; gripping the seated cap does not move it; the cap turns about the tube axis following the hand, clockwise only viewed from below, as a ratchet (turning back does nothing, progress kept between grabs); one tick and 0.2/0.02 haptic per `capDetentAngle` of new progress; at `capLockAngle` it stops, plays the firm click, fires 1.0/0.20 and `capLocked` becomes true; the gap closes over 0.1 s; a locked cap cannot be turned or removed; letting go early is silent; an unlocked cap pulled more than `capPullOff` along the axis comes off and its progress resets.
+- Twist reading borrows the XRKnob technique: the hand's position orbiting the axis when it grips more than 3 cm off-axis, otherwise its wrist roll (forward or up vector, whichever lies flattest), never both, with wrap-safe per-frame deltas.
+- `CapTwistLogic` is plain C# (progress, detents, lock, reset) so SPEC 12.1's cap rule is unit-tested.
+- Glow rings on CapSeat and MotorSeat at the bottom rim, sharing the nose ring mesh.
+- New events `CapDetent` and `CapLocked` wired into `AssemblyFeedback` with the placeholder ratchet tick (HoverSound) and firm click (Button_22_Click).
+
+**Verified, and how**
+- Edit-mode 20/20 green. CapTwistLogic: accumulates across grabs, never decreases, detent ticks exactly on each 30 degree boundary of new progress, locks exactly at 180 without overshoot even from summed float deltas, lock reported once, nothing changes after lock, reset on pull-off.
+- Play-mode 4/4 green (26 s), via `unity command run_tests --mode playmode --filter VRRocket.Tests --async_tests true`:
+  - `CapTwistTests.Cap_SeatsUnlockedWithGap_RatchetsClockwise_LocksAtLockAngle`: 2 mm gap after seating, gripping leaves it, 100 degrees of clockwise orbit gives progress 100 and 3 ticks with the cap turned to match, 50 back changes nothing, forward again locks at exactly 180 with 5 ticks total and one lock, gap 0 afterwards, further turning and a 8 cm pull do nothing, release leaves it seated kinematic under CapSeat.
+  - `CapTwistTests.Cap_EarlyLetGoKeepsSeat_ProgressKeptBetweenGrabs_PullOffResets`: early let-go keeps the seat and the gap with no events; progress continues across grabs; a 6 cm pull detaches, resets to 0, the cap follows the hand and drops dynamic into its tray group; re-seating starts from zero with the gap.
+  - `NoseGuideTests` (2): the M2 walk-through now also checks the faded magnetism at three depths and that engage and break-away ease over the blend instead of jumping.
+- Console clean of VRRocket errors and warnings during the runs. One teardown bug found and fixed on the way: XRI releases a held object from OnDisable during scene unload, and re-parenting there threw.
+
+**Not verified in the headset**: the twist direction (clockwise viewed from below is implemented as negative Unity yaw about the tube's +Y; `MotorCapTwist` has a flip toggle if it feels reversed), the 3 cm position/wrist mode radius, how the ratchet reads with real wrist motion, whether the 2 mm gap is visible on Quest, all haptic values.
+
+**Notes**
+- Gating is not implemented yet (M6), so the cap can be seated on a bare tube, as M3 requires.
+- Dynamic attach snaps to the collider surface, so the hand-to-origin offset of a held cap depends on where it was grabbed.

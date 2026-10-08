@@ -13,7 +13,11 @@ namespace VRRocket
         public static event Action<RocketPart, AttachPoint> PartSeated;
         public static event Action<RocketPart, AttachPoint> PartRemoved;
         public static event Action<RocketPart> PartRespawned;
+        public static event Action<RocketPart> CapDetent;      // one ratchet tick of new progress
+        public static event Action<RocketPart> CapLocked;
 
+        internal static void RaiseCapDetent(RocketPart part) => CapDetent?.Invoke(part);
+        internal static void RaiseCapLocked(RocketPart part) => CapLocked?.Invoke(part);
         internal static void RaiseGuideEngaged(RocketPart part, AttachPoint point) => GuideEngaged?.Invoke(part, point);
         internal static void RaiseGuideReleased(RocketPart part, AttachPoint point) => GuideReleased?.Invoke(part, point);
         internal static void RaisePartSeated(RocketPart part, AttachPoint point) => PartSeated?.Invoke(part, point);

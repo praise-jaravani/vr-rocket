@@ -45,6 +45,8 @@ namespace VRRocket
             AssemblyEvents.PartSeated += OnPartSeated;
             AssemblyEvents.PartRemoved += OnPartRemoved;
             AssemblyEvents.PartRespawned += OnPartRespawned;
+            AssemblyEvents.CapDetent += OnCapDetent;
+            AssemblyEvents.CapLocked += OnCapLocked;
         }
 
         void OnDisable()
@@ -53,6 +55,22 @@ namespace VRRocket
             AssemblyEvents.PartSeated -= OnPartSeated;
             AssemblyEvents.PartRemoved -= OnPartRemoved;
             AssemblyEvents.PartRespawned -= OnPartRespawned;
+            AssemblyEvents.CapDetent -= OnCapDetent;
+            AssemblyEvents.CapLocked -= OnCapLocked;
+        }
+
+        void OnCapDetent(RocketPart part)
+        {
+            if (m_Library == null) return;
+            PlayAt(m_Library.capDetent, part.transform.position);
+            SendHaptic(part, m_Library.hapticCapDetent);
+        }
+
+        void OnCapLocked(RocketPart part)
+        {
+            if (m_Library == null) return;
+            PlayAt(m_Library.capLock, part.transform.position);
+            SendHaptic(part, m_Library.hapticCapLock);
         }
 
         void OnGuideEngaged(RocketPart part, AttachPoint point)
