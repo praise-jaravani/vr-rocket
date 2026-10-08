@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 97585ff4018ae58499ea7f0647bb5098
+guid: 5819c208cb4e64f498771a43157bac8c
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
@@ -7,8 +7,8 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: Rocket_Orange
-    second: {fileID: 2100000, guid: 759f535e33de5844e829dfc9c2dbb8ae, type: 2}
+      name: Rocket_Cardboard
+    second: {fileID: 2100000, guid: dbe9da115eed26747b1a3416b810deb0, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule

@@ -3,7 +3,12 @@ guid: 5880f075f44d0554f9e2de64254a8a32
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Rocket_Black
+    second: {fileID: 2100000, guid: c13d985126b4e034ebf51c5bcd9a79de, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
