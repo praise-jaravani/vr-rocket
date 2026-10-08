@@ -89,6 +89,7 @@ namespace VRRocket
             var rotation = m_Pad.rotation * (m_TrayPoses.TryGetValue(part, out var tray) ? tray.rotation : Quaternion.identity);
             PlaceAtRest(part, m_Pad.position + m_Pad.rotation * offset, rotation);
             onRespawned.Invoke(part);
+            AssemblyEvents.RaisePartRespawned(part);
         }
 
         /// <summary>Returns every part to its original tray pose, at rest.</summary>

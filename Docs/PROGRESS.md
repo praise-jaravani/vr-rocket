@@ -50,3 +50,25 @@ One dated entry per milestone (SPEC.md section 11): what works, what was verifie
 **Deviations and notes**
 - SPEC 10.3 suggests a `RocketPart` interaction layer to stop far and ray interactors. The rig's hands are single `NearFarInteractor`s whose near and far casters share one layer mask, so a layer cannot separate near from far. The layer exists and parts carry it, but near-only is enforced by `NearOnlyGrabFilter` measuring from the interactor's own transform (its attach transform sits at the far-cast hit point and is useless for this). Parts also keep the Default layer so the prefab works in any scene without rig edits.
 - Dev room is greybox primitives, not the Creepy Cat kit: all 39 kit materials use the built-in Standard shader and render magenta in URP until the Render Pipeline Converter is run, which edits the read-only kit folder and is Praise's call. The kit's demo scene has 257 lights.
+
+## 2026-10-08: M2 Guide mechanic on the nose cone (done)
+
+**What works**
+- `GuideGrabTransformer` (XRBaseGrabTransformer, registered after XRI's XRGeneralGrabTransformer so it runs last): approach glow on every accepting point within glowRadius (brightness by closeness), capture inside captureRadius when within orientation tolerance, rotation locked to the seated rotation, position projected onto the attach axis and clamped to guideLength, nose magnetism (displayed depth = hand depth x noseMagnetism), break away on sideways drift past breakRadius or past the end of the guide, seat on release (animated over seatDuration, then parented under the attach point, kinematic, collisions with the rocket ignored), re-grab of an attached part re-enters the guide at depth 0, pull past guideLength detaches and returns the part to its tray group.
+- `RocketGrabInteractable`: XRGrabInteractable plus a pre-grab event, needed so an attached (kinematic) part is dynamic again when XRI records its state; otherwise XRI restores kinematic on release and refuses to throw.
+- `AttachPoint` now owns its glow (unlit emissive ring mesh, MaterialPropertyBlock, per-frame max request) and a static registry of active points.
+- Feedback: `AssemblyEvents` static hub, `FeedbackLibrary` asset (clips per event, haptic amplitude and duration per SPEC 6 table), `AssemblyFeedback` on the workstation root (pooled 3D AudioSources, haptics through `XRBaseInputInteractor.SendHapticImpulse` on the holding hand). Placeholder clips: HoverSound (engage tick), Button_22_Click (seat click), Button_14_Hover (nose soft click, cap seat, unseat), Button Pop (impacts, respawn).
+- Only the nose cone carries the transformer so far; the other parts stay plain grabbables until their milestones.
+
+**Verified, and how**
+- Edit-mode tests 13/13 green (GuideMath: depth/sideways decomposition, clamp and magnetism, break rule, orientation tolerance, seated rotation for nose/fin/flap and flap orientation readout).
+- Play-mode test `NoseGuideTests.NoseCone_ApproachCaptureSlideBreakSeatAndRemove` green (6.4 s): loads Dev_Interactions, takes over the right controller transform, forces the grab through XRInteractionManager and asserts every stage of 5.2 including events, parenting, kinematic state, collision ignore, glow on/off and that the nose seat clip was queued on a 3D source. Run it with Test Runner > PlayMode or `unity command run_tests --mode playmode --filter NoseGuide --async_tests true`.
+- Console clean of errors and of warnings from VRRocket code during the runs.
+
+**Not verified in the headset** (SPEC 12.2 items 2 and 3 for the nose, and all haptics): the feel of capture and break-away radii, the vibration values, whether the glow ring reads well on Quest.
+
+**Deviations and notes**
+- `noseMagnetism` is implemented literally as the displayed fraction of the hand's distance (0.5 shows half). If "pull strength" was meant, invert it in `GuideGrabTransformer.Process`.
+- XRGrabInteractable unparents a held object and restores the grab-time parent on drop; the transformer re-parents a pulled-off part to its tray group after the drop.
+- Part-side glow (the "should" in SPEC 6) not done yet; planned for M8 polish.
+- Teleporting a controller through the tray in tests sweeps parts off the desk via the rig's Pusher bodies; harmless (they respawn) but tests park the hand away from the tray first.

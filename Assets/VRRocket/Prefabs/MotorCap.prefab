@@ -12,8 +12,8 @@ GameObject:
   - component: {fileID: 5609041075955349362}
   - component: {fileID: 5675415643869607044}
   - component: {fileID: 4141404639914472610}
-  - component: {fileID: 2762644422913039597}
-  - component: {fileID: 6680823216466773697}
+  - component: {fileID: 4041441115458194657}
+  - component: {fileID: 6783473487170415487}
   m_Layer: 0
   m_Name: MotorCap
   m_TagString: Untagged
@@ -100,7 +100,7 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 2
---- !u!114 &2762644422913039597
+--- !u!114 &4041441115458194657
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -109,9 +109,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1219120453780004628}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0ad34abafad169848a38072baa96cdb2, type: 3}
+  m_Script: {fileID: 11500000, guid: 56a41bde3b1c5be43ad479d33ad5d6af, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Unity.XR.Interaction.Toolkit::UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable
+  m_EditorClassIdentifier: VRRocket.Runtime::VRRocket.RocketGrabInteractable
   m_InteractionManager: {fileID: 0}
   m_Colliders: []
   m_InteractionLayers:
@@ -229,7 +229,7 @@ MonoBehaviour:
   m_LimitAngularVelocity: 0
   m_MaxLinearVelocityDelta: 10
   m_MaxAngularVelocityDelta: 20
---- !u!114 &6680823216466773697
+--- !u!114 &6783473487170415487
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ce5d2b4572cc8e4c87b48622d88152d, type: 3}
+  m_Name: FeedbackLibrary
+  m_EditorClassIdentifier: VRRocket.Runtime::VRRocket.FeedbackLibrary
+  guideEngage: {fileID: 8300000, guid: e5e88e22a2e4bc946bcecb9cb1737035, type: 3}
+  seat: {fileID: 8300000, guid: 4aa5e83ae912c46409c45fc3f4f5cfe4, type: 3}
+  noseSeat: {fileID: 8300000, guid: 1d4ffba877e11574b83dd66ffe09c3e2, type: 3}
+  capSeatUnlocked: {fileID: 8300000, guid: 1d4ffba877e11574b83dd66ffe09c3e2, type: 3}
+  capDetent: {fileID: 8300000, guid: e5e88e22a2e4bc946bcecb9cb1737035, type: 3}
+  capLock: {fileID: 8300000, guid: 4aa5e83ae912c46409c45fc3f4f5cfe4, type: 3}
+  unseat: {fileID: 8300000, guid: 1d4ffba877e11574b83dd66ffe09c3e2, type: 3}
+  standRelease: {fileID: 8300000, guid: 4aa5e83ae912c46409c45fc3f4f5cfe4, type: 3}
+  impactDesk: {fileID: 8300000, guid: 16fba6d30ed741d4a9fdd6e79ee2f3ac, type: 3}
+  impactPart: {fileID: 8300000, guid: 16fba6d30ed741d4a9fdd6e79ee2f3ac, type: 3}
+  respawnPop: {fileID: 8300000, guid: 16fba6d30ed741d4a9fdd6e79ee2f3ac, type: 3}
+  volume: 1
+  hapticGuideEngage:
+    amplitude: 0.15
+    duration: 0.02
+  hapticSeat:
+    amplitude: 0.5
+    duration: 0.08
+  hapticNoseSeat:
+    amplitude: 0.4
+    duration: 0.08
+  hapticCapSeatUnlocked:
+    amplitude: 0.2
+    duration: 0.04
+  hapticCapDetent:
+    amplitude: 0.2
+    duration: 0.02
+  hapticCapLock:
+    amplitude: 1
+    duration: 0.2
+  hapticPartRemoved:
+    amplitude: 0.2
+    duration: 0.04
+  hapticPrototypeComplete:
+    amplitude: 0.3
+    duration: 0.1

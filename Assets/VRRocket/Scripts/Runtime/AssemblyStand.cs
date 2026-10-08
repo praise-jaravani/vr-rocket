@@ -37,9 +37,12 @@ namespace VRRocket
             var body = tube.body;
             if (body != null)
             {
+                if (!body.isKinematic)
+                {
+                    body.linearVelocity = Vector3.zero;
+                    body.angularVelocity = Vector3.zero;
+                }
                 body.isKinematic = true;
-                body.linearVelocity = Vector3.zero;
-                body.angularVelocity = Vector3.zero;
             }
             var grab = tube.grabInteractable;
             if (grab != null) grab.enabled = false;

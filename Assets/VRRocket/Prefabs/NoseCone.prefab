@@ -9,11 +9,13 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7407650213178070818}
+  - component: {fileID: 778028030764279792}
   - component: {fileID: 4752180699410378063}
   - component: {fileID: 2819695070139756229}
   - component: {fileID: 3001226851740874303}
-  - component: {fileID: 1145901433524287479}
-  - component: {fileID: 5661028725620397378}
+  - component: {fileID: 1179679852956174187}
+  - component: {fileID: 7142094626144340546}
+  - component: {fileID: 4556520946793845563}
   m_Layer: 0
   m_Name: NoseCone
   m_TagString: Untagged
@@ -37,6 +39,29 @@ Transform:
   - {fileID: 4112103330199181964}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &778028030764279792
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1606067758277396156}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0a1302d0d134fa8a2a5b3bf4aec3c20, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.XR.Interaction.Toolkit::UnityEngine.XR.Interaction.Toolkit.Transformers.XRGeneralGrabTransformer
+  m_PermittedDisplacementAxes: 7
+  m_ConstrainedAxisDisplacementMode: 1
+  m_TwoHandedRotationMode: 1
+  m_AllowOneHandedScaling: 1
+  m_AllowTwoHandedScaling: 0
+  m_OneHandedScaleSpeed: 0.5
+  m_ThresholdMoveRatioForScale: 0.05
+  m_ClampScaling: 1
+  m_MinimumScaleRatio: 0.25
+  m_MaximumScaleRatio: 2
+  m_ScaleMultiplier: 0.25
 --- !u!114 &4752180699410378063
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -101,7 +126,7 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 2
---- !u!114 &1145901433524287479
+--- !u!114 &1179679852956174187
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -110,9 +135,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1606067758277396156}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0ad34abafad169848a38072baa96cdb2, type: 3}
+  m_Script: {fileID: 11500000, guid: 56a41bde3b1c5be43ad479d33ad5d6af, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Unity.XR.Interaction.Toolkit::UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable
+  m_EditorClassIdentifier: VRRocket.Runtime::VRRocket.RocketGrabInteractable
   m_InteractionManager: {fileID: 0}
   m_Colliders: []
   m_InteractionLayers:
@@ -230,7 +255,7 @@ MonoBehaviour:
   m_LimitAngularVelocity: 0
   m_MaxLinearVelocityDelta: 10
   m_MaxAngularVelocityDelta: 20
---- !u!114 &5661028725620397378
+--- !u!114 &7142094626144340546
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -243,6 +268,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: VRRocket.Runtime::VRRocket.NearOnlyGrabFilter
   m_MaxDistance: 0.12
+--- !u!114 &4556520946793845563
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1606067758277396156}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3dc1dd6b0e0bb3b46a8aefefe439a69f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VRRocket.Runtime::VRRocket.GuideGrabTransformer
+  m_Tuning: {fileID: 11400000, guid: 5bec0ada554af36478887b4b612ebda8, type: 2}
 --- !u!1001 &4511368004956880231
 PrefabInstance:
   m_ObjectHideFlags: 0

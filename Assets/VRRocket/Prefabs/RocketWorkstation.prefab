@@ -561,6 +561,7 @@ GameObject:
   - component: {fileID: 3636903935074574089}
   - component: {fileID: 327382929471172723}
   - component: {fileID: 5020538025137371216}
+  - component: {fileID: 463528679635697905}
   m_Layer: 0
   m_Name: RocketWorkstation
   m_TagString: Untagged
@@ -622,6 +623,20 @@ MonoBehaviour:
   m_ScaledRoot: {fileID: 1394878050380027377}
   m_Stand: {fileID: 1736377895814590534}
   m_Respawner: {fileID: 327382929471172723}
+--- !u!114 &463528679635697905
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7840346150586562841}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c68570015dbabf74f8a379ac5f075bfe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VRRocket.Runtime::VRRocket.AssemblyFeedback
+  m_Library: {fileID: 11400000, guid: 04ee2202f78682b418ea9a6ab04b945b, type: 2}
+  m_AudioSourceCount: 4
 --- !u!1 &8286198352247319380
 GameObject:
   m_ObjectHideFlags: 0
