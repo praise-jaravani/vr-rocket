@@ -45,7 +45,7 @@ RocketPart inspectPrototype;                   // the frozen rocket returned for
 
 ## 4. Stubs to delete
 
-`Assets/VRRocket/Prefabs/Stubs/MissionControlStubs.prefab` is placed in both scenes, named `MissionControlStubs [STUB, delete when real systems arrive]`. It holds:
+`Assets/VRRocket/Prefabs/Stubs/MissionControlStubs.prefab` is placed in `Dev_Interactions.unity` only (the working flow of section 6 replaced it in `Env_ControlRoom.unity`), named `MissionControlStubs [STUB, delete when real systems arrive]`. It holds:
 
 - `SubmissionZoneStub`: a trigger box plus a Submit button that calls `TrySubmit()` and hides the rocket. Your bin replaces it.
 - `OutcomeReadoutStub`: a panel printing the report, with "Failed launch" and "Abort" buttons that call the two sequences above. Your launch screen and buttons replace it.
@@ -56,6 +56,17 @@ Delete the stub object from your scene and the prefab folder when your systems a
 ## 5. Things to know
 
 - All parts, the tube and the stand share one guided-attach mechanic (`GuideGrabTransformer`). The attach points are generated from `SourceArt/VR_Rocket_Kit_Parts_v2/attach_points.json` by the menu item VR Rocket > Generate Attach Points On Selected BodyTube; do not hand-edit them.
-- `Assets/VRRocket/Prefabs/AssembledRocket_Static.prefab` is a plain assembled rocket (no physics or scripts) for your launch animation; the control room scene uses it scaled 36x on the pad outside the window.
+- `Assets/VRRocket/Prefabs/AssembledRocket_Static.prefab` is a plain assembled rocket (no physics or scripts) for your launch animation. `Prefabs/Launch/LaunchVehicle.prefab` is a 36x copy of it stripped to meshes, with the engine flame and sparks at the nozzle, used by the launch sequence below.
 - Tests: Window > General > Test Runner. EditMode covers the outcome rule, state machine, gating, cap ratchet and attach transforms; PlayMode drives every interaction in `Dev_Interactions.unity`. Run them after changing anything under `Assets/VRRocket`.
 - Headset-only checks (feel, haptics, frame rate) are listed in SPEC 12.2 and are Praise's.
+
+## 6. Working version of the menu, flow and launch (yours to replace)
+
+`Env_ControlRoom.unity` runs the whole loop today so the rocket can be played end to end. It lives in two scene roots that are not part of the room prefab or the rocket prefab, so deleting them removes it cleanly:
+
+- `GameFlow`: `GameFlowController` (Menu, Assembly, PreLaunch, Countdown, Launch, Result), `LaunchScreenController` (drives the big screen's texts, swaps its material to the pad camera feed, paints the `Diagram` quads red for failed components), `BlueprintDisplay` (step text on the CRT), `SubmissionBin` (trigger over the console opening; `Submit()` calls `TrySubmit()` and sinks the rocket; `returnSpot` is where a failed prototype comes back), `EventSystem` and `MenuCanvas` (world-space UGUI with `TrackedDeviceGraphicRaycaster`; START calls `GameFlowController.StartGame`).
+- `LaunchSite`: `LaunchSequence` with the 36x vehicle, effects, pad camera and audio; `Liftoff(outcome, onFinished)` plays one of the three outcomes from `RocketFlightModel`.
+
+Entry points, all wired to the console on the room instance: `SubmissionBin.Submit`, `GameFlowController.Launch`, `GameFlowController.Abort`. `GameFlowController.Configure(...)` and the other `Configure` methods take every reference, so the objects can be rebuilt by script; the Inspector works too.
+
+To replace a piece: keep the `RocketAssembly` interface of section 2 and the button names on the console. Your bin can keep calling `TrySubmit()` and the two return sequences; your launch screen can read `GameFlowController.lastReport` or subscribe to `RocketAssembly.Submitted`. The wire puzzle of SPEC 9 is not built; `Launch()` is accepted as soon as the vehicle is on the pad. The flow locks the parts outside the Assembly phase through `RocketAssembly.interactionEnabled`; if you drop the flow, leave that true (its default).

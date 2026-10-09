@@ -50,4 +50,4 @@ Downloaded but not used (kept in `SourceArt/Environment/polyhaven`, CC0): metal_
 | Orbitron (variable) | Matt McInerney | https://github.com/google/fonts/tree/main/ofl/orbitron | SIL Open Font License 1.1 | 2026-10-09 | menu and screen titles |
 | Share Tech Mono | Carrois Apostrophe | https://github.com/google/fonts/tree/main/ofl/sharetechmono | SIL Open Font License 1.1 | 2026-10-09 | telemetry and body text |
 
-Originals under `SourceArt/Kenney/` and `SourceArt/Menu/fonts/` with their licence texts. Only the files actually used go into `Assets`.
+Originals under `SourceArt/Kenney/` and `SourceArt/Menu/fonts/` with their licence texts. Only the files actually used go into `Assets`. Imported subsets: `Assets/VRRocket/Textures/Particles` (11 sprites), `Assets/VRRocket/Audio/Kenney` (9 clips), `Assets/VRRocket/UI/Sprites` (2 button graphics), `Assets/VRRocket/UI/Fonts` (the two fonts and their TMP font assets).

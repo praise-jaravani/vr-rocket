@@ -20,8 +20,8 @@ MonoBehaviour:
   capLock: {fileID: 8300000, guid: 4aa5e83ae912c46409c45fc3f4f5cfe4, type: 3}
   unseat: {fileID: 8300000, guid: 1d4ffba877e11574b83dd66ffe09c3e2, type: 3}
   standRelease: {fileID: 8300000, guid: 4aa5e83ae912c46409c45fc3f4f5cfe4, type: 3}
-  impactDesk: {fileID: 8300000, guid: 16fba6d30ed741d4a9fdd6e79ee2f3ac, type: 3}
-  impactPart: {fileID: 8300000, guid: 16fba6d30ed741d4a9fdd6e79ee2f3ac, type: 3}
+  impactDesk: {fileID: 8300000, guid: 923c103acd956f64e98f4c97a5bd14d0, type: 3}
+  impactPart: {fileID: 8300000, guid: f73f149287d29cb4e9337f6ced970759, type: 3}
   respawnPop: {fileID: 8300000, guid: 16fba6d30ed741d4a9fdd6e79ee2f3ac, type: 3}
   volume: 1
   hapticGuideEngage:

@@ -34,6 +34,7 @@ namespace VRRocket
         public GamePhase phase { get; private set; } = GamePhase.Menu;
         public BuildReport lastReport { get; private set; }
         public int successes { get; private set; }
+        /// <summary>Flights flown (liftoffs), successful or not.</summary>
         public int attempts { get; private set; }
         public float countdownSeconds { get => m_CountdownSeconds; set => m_CountdownSeconds = value; }
         public float resultSeconds { get => m_ResultSeconds; set => m_ResultSeconds = value; }
@@ -41,6 +42,7 @@ namespace VRRocket
 
         AudioClip m_Beep, m_BeepHigh, m_Chime, m_Buzz;
         Coroutine m_Routine;
+        bool m_PadReady;   // the vehicle is on the pad; Launch is refused before that
 
         public void Configure(RocketAssembly assembly, SubmissionBin bin, LaunchSequence launch, LaunchScreenController screen, MenuPanel menu, BlueprintDisplay blueprint, AudioSource audio)
         {
@@ -91,6 +93,7 @@ namespace VRRocket
         {
             if (m_Routine != null) { StopCoroutine(m_Routine); m_Routine = null; }
             SetPhase(GamePhase.Menu);
+            m_PadReady = false;
             if (m_Assembly != null) m_Assembly.interactionEnabled = false;
             if (m_Launch != null) m_Launch.ResetPad();
             if (m_Screen != null) m_Screen.ShowTitle(afterSuccess ? "MISSION SUCCESS" : "VR ROCKET", afterSuccess ? "Flight " + attempts + " reached orbit insertion. Press START to build another." : "Build it. Submit it. Launch it.");
@@ -111,6 +114,7 @@ namespace VRRocket
         void EnterAssembly(string hint)
         {
             SetPhase(GamePhase.Assembly);
+            m_PadReady = false;
             if (m_Menu != null) m_Menu.Hide();
             if (m_Assembly != null) m_Assembly.interactionEnabled = true;
             if (m_Launch != null) m_Launch.ResetPad();
@@ -137,7 +141,6 @@ namespace VRRocket
         void OnSubmitted(BuildReport report)
         {
             lastReport = report;
-            attempts++;
             if (m_Routine != null) StopCoroutine(m_Routine);
             m_Routine = StartCoroutine(SubmissionRoutine());
         }
@@ -145,20 +148,22 @@ namespace VRRocket
         IEnumerator SubmissionRoutine()
         {
             SetPhase(GamePhase.PreLaunch);
+            m_PadReady = false;
             if (m_Assembly != null) m_Assembly.interactionEnabled = false;
             if (m_Audio != null) m_Audio.PlayOneShot(m_Chime);
             if (m_Screen != null) m_Screen.ShowTitle("PROTOTYPE RECEIVED", "Scaling for launch...");
             yield return new WaitForSeconds(m_SubmitToPadSeconds);
             if (m_Launch != null) m_Launch.PlaceVehicleOnPad();
+            m_PadReady = true;
             if (m_Screen != null) m_Screen.ShowPreLaunch();
             if (m_Blueprint != null) m_Blueprint.ShowText("Rocket on the pad.\nLAUNCH or ABORT at the console.");
             m_Routine = null;
         }
 
-        /// <summary>Wired to the console's green Launch button.</summary>
+        /// <summary>Wired to the console's green Launch button. Refused until the vehicle is on the pad.</summary>
         public void Launch()
         {
-            if (phase != GamePhase.PreLaunch) { if (m_Audio != null) m_Audio.PlayOneShot(m_Buzz); return; }
+            if (phase != GamePhase.PreLaunch || !m_PadReady) { if (m_Audio != null) m_Audio.PlayOneShot(m_Buzz); return; }
             if (m_Routine != null) StopCoroutine(m_Routine);
             m_Routine = StartCoroutine(CountdownRoutine());
         }
@@ -189,6 +194,7 @@ namespace VRRocket
             }
             if (!ignited && m_Launch != null) m_Launch.Ignite();
             if (m_Audio != null) m_Audio.PlayOneShot(m_BeepHigh);
+            attempts++;   // a flight, not a submission: aborted submissions do not count
             SetPhase(GamePhase.Launch);
             var outcome = lastReport != null ? lastReport.outcome : LaunchOutcome.Success;
             var done = false;

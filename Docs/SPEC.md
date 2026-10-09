@@ -401,6 +401,8 @@ Every event is also exposed as a UnityEvent so teammates can wire things in the 
 
 Mark every stub clearly in the hierarchy. They are deleted when the real systems arrive.
 
+Update 9 Oct 2026: beyond the stubs, a working version of the section 9 systems the rocket plugs into (menu, flow, bin, launch screen, launch outside) exists in `Env_ControlRoom.unity` under the `GameFlow` and `LaunchSite` scene objects, so the whole loop can be played and tested before the teammates' versions arrive. Ownership is unchanged; see Docs/INTEGRATION.md section 6.
+
 ## 9. Other systems [TEAM]
 
 Recreated from the treatment so the agent knows what the rocket plugs into. The agent does not build these.
@@ -422,14 +424,18 @@ Recreated from the treatment so the agent knows what the rocket plugs into. The 
 ```
 Assets/VRRocket/
   Models/        the six FBX files
-  Materials/     Rocket_White, Rocket_Orange, Rocket_Black, Rocket_Cardboard, Glow
-  Prefabs/       RocketWorkstation, one prefab per part, AssemblyStand, stubs
-  Scenes/        Dev_Interactions.unity
+  Materials/     Rocket_White, Rocket_Orange, Rocket_Black, Rocket_Cardboard, Glow, particle and screen materials
+  Prefabs/       RocketWorkstation, one prefab per part, AssemblyStand, stubs, Launch/ (LaunchVehicle, Explosion)
+  Scenes/        Dev_Interactions.unity, Env_ControlRoom.unity
   Scripts/
     Runtime/     VRRocket.Runtime.asmdef, namespace VRRocket
     Editor/      attach point generator
     Tests/       edit mode and play mode tests
   Settings/      AssemblyTuning.asset, FeedbackLibrary.asset
+  Audio/Kenney/  CC0 clips used by the feedback library and the launch
+  Textures/      particle sprites
+  UI/            fonts (with TMP font assets) and sprites for the menu and screens
+  Environment/   the greybox room, its materials, textures and prefabs (Docs/ENVIRONMENT.md)
 ```
 
 Read-only folders: `Assets/XRI_Examples` and `Assets/Samples`. Copy from them, never edit them.
@@ -448,6 +454,7 @@ Read-only folders: `Assets/XRI_Examples` and `Assets/Samples`. Copy from them, n
 | `PartRespawner` | Section 8.3 |
 | `AssemblyFeedback` | Turns events into glow, audio and haptics using the two settings assets |
 | `ImpactAudio` | Collision sounds |
+| `GameFlowController`, `LaunchSequence`, `RocketFlightModel`, `LaunchScreenController`, `SubmissionBin`, `MenuPanel`, `BlueprintDisplay` | Working version of the section 9 systems (added 9 Oct 2026, replaceable; Docs/INTEGRATION.md section 6). `RocketFlightModel` is plain C# with unit tests |
 
 Keep the outcome logic and the state machine free of scene references so they can be tested without a headset.
 

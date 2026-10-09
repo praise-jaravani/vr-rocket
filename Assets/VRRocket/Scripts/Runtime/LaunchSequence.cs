@@ -55,10 +55,14 @@ namespace VRRocket
             m_EngineLoop = engine; m_OneShot = oneShot; m_IgnitionClip = ignition; m_ExplosionClip = explosion; m_ExplosionLowClip = explosionLow; m_PadCamera = padCamera;
         }
 
+        Vector3 m_FlameLocalPos;
+        Quaternion m_FlameLocalRot;
+
         void Awake()
         {
             if (m_VehicleMotor != null) { m_MotorParent = m_VehicleMotor.parent; m_MotorLocalPos = m_VehicleMotor.localPosition; m_MotorLocalRot = m_VehicleMotor.localRotation; }
             if (m_VehicleCap != null) { m_CapParent = m_VehicleCap.parent; m_CapLocalPos = m_VehicleCap.localPosition; }
+            if (m_Flame != null) { m_FlameLocalPos = m_Flame.transform.localPosition; m_FlameLocalRot = m_Flame.transform.localRotation; }
             StopEffects();
             if (m_PadCamera != null) m_PadCamera.enabled = false;
         }
@@ -72,6 +76,7 @@ namespace VRRocket
             if (m_ActiveExplosion != null) Destroy(m_ActiveExplosion);
             if (m_VehicleMotor != null && m_MotorParent != null) { m_VehicleMotor.SetParent(m_MotorParent, false); m_VehicleMotor.localPosition = m_MotorLocalPos; m_VehicleMotor.localRotation = m_MotorLocalRot; }
             if (m_VehicleCap != null && m_CapParent != null) { m_VehicleCap.SetParent(m_CapParent, false); m_VehicleCap.localPosition = m_CapLocalPos; }
+            if (m_Flame != null) { m_Flame.transform.localPosition = m_FlameLocalPos; m_Flame.transform.localRotation = m_FlameLocalRot; }
             if (m_Vehicle != null)
             {
                 m_Vehicle.transform.SetPositionAndRotation(m_PadOrigin != null ? m_PadOrigin.position : m_Vehicle.transform.position, m_PadOrigin != null ? m_PadOrigin.rotation : Quaternion.identity);
@@ -140,17 +145,21 @@ namespace VRRocket
                         ejected = true;
                         m_VehicleMotor.SetParent(null, true);
                         if (m_VehicleCap != null) m_VehicleCap.SetParent(m_VehicleMotor, true);
-                        if (m_Flame != null) m_Flame.transform.SetParent(m_VehicleMotor, true);
                         if (m_OneShot != null && m_ExplosionLowClip != null) m_OneShot.PlayOneShot(m_ExplosionLowClip, 0.8f);
                     }
-                    // the motor shoots out of the base, skids along the pad and tumbles
+                    // the motor shoots out of the base, skids along the pad and tumbles; the flame follows it
                     var dir = padRot * new Vector3(0.6f, -0.25f, 0.75f).normalized;
                     var d = model.motorEjectDistance * m_VisualScale;
                     var ground = padPos + dir * d;
                     ground.y = padPos.y + Mathf.Max(0f, 2.5f * d / 20f - 0.2f * d * d / 20f) + 0.3f;
                     m_VehicleMotor.position = ground;
                     m_VehicleMotor.rotation = padRot * Quaternion.AngleAxis(model.time * 240f, Vector3.right) * Quaternion.AngleAxis(-70f, Vector3.right);
-                    if (m_Flame != null && model.time > model.motorEjectTime + 2.5f && m_Flame.isPlaying) m_Flame.Stop();
+                    if (m_Flame != null)
+                    {
+                        m_Flame.transform.position = m_VehicleMotor.position;
+                        m_Flame.transform.rotation = m_VehicleMotor.rotation * Quaternion.Euler(90f, 0f, 0f);
+                        if (model.time > model.motorEjectTime + 2.5f && m_Flame.isPlaying) m_Flame.Stop();
+                    }
                     if (m_EngineLoop != null) m_EngineLoop.volume = Mathf.Max(0f, 1f - (model.time - model.motorEjectTime) / 2.5f);
                 }
                 if (!model.burning && m_Flame != null && m_Flame.isPlaying && outcome != LaunchOutcome.MotorRetentionLoss)
@@ -204,7 +213,10 @@ namespace VRRocket
         void UpdatePadCamera(float altitude)
         {
             if (m_PadCamera == null || m_PadOrigin == null) return;
-            var target = m_Vehicle != null && m_Vehicle.activeInHierarchy ? m_Vehicle.transform.position + Vector3.up * 6f : m_PadOrigin.position + Vector3.up * 6f;
+            // follow the vehicle; after an explosion stay on the fireball instead of snapping back to the empty pad
+            var target = m_ActiveExplosion != null ? m_ActiveExplosion.transform.position
+                : m_Vehicle != null && m_Vehicle.activeInHierarchy ? m_Vehicle.transform.position + Vector3.up * 6f
+                : m_PadOrigin.position + Vector3.up * 6f;
             // the camera stays on its tripod and pans up; it widens its view as the rocket climbs
             m_PadCamera.transform.position = m_PadOrigin.position + m_PadOrigin.rotation * m_PadCameraOffset;
             m_PadCamera.transform.LookAt(target);

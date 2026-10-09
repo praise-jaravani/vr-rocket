@@ -17,7 +17,8 @@ namespace VRRocket.Tests
     /// </summary>
     public abstract class DevSceneTestBase
     {
-        const string k_Scene = "Assets/VRRocket/Scenes/Dev_Interactions.unity";
+        /// <summary>Scene loaded before each test. Override to run the same helpers in another scene.</summary>
+        protected virtual string scenePath => "Assets/VRRocket/Scenes/Dev_Interactions.unity";
 
         protected RocketWorkstation workstation;
         protected RocketAssembly assembly;
@@ -39,7 +40,7 @@ namespace VRRocket.Tests
             // Scene start-up with the simulator can log an XRI error ("GameObject is already being activated or deactivated")
             // from the rig's modality manager toggling controller objects. That is not what these tests check.
             LogAssert.ignoreFailingMessages = true;
-            yield return UnityEditor.SceneManagement.EditorSceneManager.LoadSceneAsyncInPlayMode(k_Scene, new LoadSceneParameters(LoadSceneMode.Single));
+            yield return UnityEditor.SceneManagement.EditorSceneManager.LoadSceneAsyncInPlayMode(scenePath, new LoadSceneParameters(LoadSceneMode.Single));
             yield return null;
             workstation = Object.FindFirstObjectByType<RocketWorkstation>();
             assembly = Object.FindFirstObjectByType<RocketAssembly>();

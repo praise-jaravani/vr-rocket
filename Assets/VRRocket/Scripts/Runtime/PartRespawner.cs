@@ -13,6 +13,7 @@ namespace VRRocket
     {
         [SerializeField] AssemblyTuning m_Tuning;
         [SerializeField, Tooltip("Trigger box marking the workstation bounds. Parts outside it for respawnDelay respawn.")] BoxCollider m_Bounds;
+        [SerializeField, Tooltip("Extra zones that count as in bounds (the submission bin, the console top). Parts inside any of them never respawn.")] List<BoxCollider> m_SafeZones = new List<BoxCollider>();
         [SerializeField, Tooltip("Parts below this world-space offset from the pad (metres, negative) have touched the floor and respawn at once.")] float m_FloorOffset = -0.5f;
         [SerializeField, Tooltip("Centre of the respawn pad. Parts are laid out in a small grid around it.")] Transform m_Pad;
         [SerializeField] Vector2 m_PadSlotSpacing = new Vector2(0.08f, 0.08f);
@@ -33,6 +34,21 @@ namespace VRRocket
             m_Tuning = tuning;
             m_Bounds = bounds;
             m_Pad = pad;
+        }
+
+        /// <summary>Registers another box inside which parts count as in bounds (the bin, the console top).</summary>
+        public void AddSafeZone(BoxCollider zone)
+        {
+            if (zone != null && !m_SafeZones.Contains(zone)) m_SafeZones.Add(zone);
+        }
+
+        /// <summary>Is the position inside the workstation bounds or any safe zone?</summary>
+        public bool Contains(Vector3 position)
+        {
+            if (m_Bounds != null && m_Bounds.bounds.Contains(position)) return true;
+            for (var i = 0; i < m_SafeZones.Count; i++)
+                if (m_SafeZones[i] != null && m_SafeZones[i].bounds.Contains(position)) return true;
+            return false;
         }
 
         void Awake()
@@ -70,7 +86,7 @@ namespace VRRocket
         {
             belowFloor = m_Pad != null && position.y < m_Pad.position.y + m_FloorOffset;
             if (belowFloor) return true;
-            return m_Bounds != null && !m_Bounds.bounds.Contains(position);
+            return m_Bounds != null && !Contains(position);
         }
 
         void Update()
@@ -78,7 +94,6 @@ namespace VRRocket
             if (m_Bounds == null || m_Pad == null) return;
             var delay = m_Tuning != null ? m_Tuning.respawnDelay : 1.5f;
             var floorY = m_Pad.position.y + m_FloorOffset;
-            var bounds = m_Bounds.bounds;
             for (var i = 0; i < m_Parts.Count; i++)
             {
                 var part = m_Parts[i];
@@ -92,7 +107,7 @@ namespace VRRocket
                     Respawn(part);
                     continue;
                 }
-                if (bounds.Contains(pos))
+                if (Contains(pos))
                 {
                     m_OutsideTimers[part] = 0f;
                     continue;
