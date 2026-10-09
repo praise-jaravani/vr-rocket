@@ -81,13 +81,11 @@ namespace VRRocket.Tests
             yield return new WaitForSeconds(0.3f);
         }
 
-        /// <summary>Lifts the finished rocket out of the stand, carries it over the bin opening and lets go.</summary>
+        /// <summary>Picks the finished rocket up from the bench, carries it over the bin opening and lets go.</summary>
         IEnumerator CarryToBin()
         {
             var tube = Tube;
             yield return Grab(tube);
-            yield return PlaceHeld(Point("StandClamp").transform.position + Vector3.up * (tuning.guideLengthTube * 1.5f), Quaternion.identity);
-            Assert.AreEqual(PartState.Free, tube.state, "lifted out of the stand");
             var binCol = bin.GetComponent<BoxCollider>();
             yield return PlaceHeld(binCol.bounds.center + Vector3.up * 0.15f, Quaternion.identity);
             Release(tube);
@@ -130,7 +128,7 @@ namespace VRRocket.Tests
             flow.Abort(); flow.Abort();   // double press is harmless
             Assert.AreEqual(GamePhase.Assembly, flow.phase, "abort returns to assembly");
             Assert.AreEqual(AssemblyState.PrototypeComplete, assembly.State);
-            Assert.IsTrue(assembly.inStand, "abort puts the same rocket back in the stand, editable");
+            Assert.IsFalse(assembly.isFrozen, "abort returns the same rocket to the bench, editable");
             Assert.IsTrue(tube.gameObject.activeInHierarchy);
             Assert.IsTrue(assembly.CanGrab(Part(PartType.MotorCap)), "cap still editable after an abort");
 
@@ -163,7 +161,7 @@ namespace VRRocket.Tests
             Assert.IsFalse(vehicle.activeInHierarchy, "pad cleared");
             Assert.IsTrue(tube.gameObject.activeInHierarchy, "the failed prototype came back");
             Assert.AreSame(tube, assembly.inspectPrototype);
-            Assert.AreNotSame(tube, assembly.tube, "a fresh tube is in the stand");
+            Assert.AreNotSame(tube, assembly.tube, "a fresh tube is on the bench");
             Assert.AreEqual(AssemblyState.BuildingAirframe, assembly.State);
             Assert.AreEqual(9, workstation.respawner.parts.Count, "nine fresh parts");
             Assert.IsTrue(assembly.interactionEnabled);
@@ -203,7 +201,6 @@ namespace VRRocket.Tests
             Assert.AreEqual(AssemblyState.BuildingAirframe, assembly.State);
             Assert.AreEqual(9, workstation.respawner.parts.Count, "nine fresh parts for the next build");
             Assert.IsNull(assembly.inspectPrototype, "nothing to inspect after a success");
-            Assert.IsTrue(assembly.inStand);
             Assert.AreNotSame(tube, assembly.tube);
         }
 

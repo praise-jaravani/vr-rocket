@@ -22,11 +22,11 @@ event Action<AssemblyState> StateChanged;      // also UnityEvent onStateChanged
 event Action PartAttached;                     // also onPartAttached
 event Action PartRemoved;                      // also onPartRemoved
 event Action<BuildReport> Submitted;           // also onSubmitted
-                                               // plus onPrototypeComplete (stand opens)
+                                               // plus onPrototypeComplete (the rocket is ready to carry)
 BuildReport GetReport();                       // valid from PrototypeComplete onward
 bool TrySubmit();                              // the bin calls this: freezes the rocket, raises Submitted
 void ReturnPrototype(ReturnMode mode, Transform at);
-void BeginNewBuild();                          // fresh tube in the stand, fresh parts on the tray
+void BeginNewBuild();                          // fresh tube and fresh parts on the tray
 void SetRocketVisible(bool visible);           // helper for your bin animation
 RocketPart tube;                               // the working rocket's body tube (carries all attached parts as children)
 RocketPart inspectPrototype;                   // the frozen rocket returned for inspection, if any
@@ -36,12 +36,12 @@ RocketPart inspectPrototype;                   // the frozen rocket returned for
 
 ## 3. Expected flow
 
-- **Assembly.** The user builds in the stand. At `PrototypeComplete` the stand releases (you get `onPrototypeComplete`); the user lifts the rocket out and carries it as one object. Parts cannot be pulled off while it is out of the stand; the cap can still be twisted.
+- **Assembly.** The tube lies on the bench with the parts and can be grabbed at any time; the user holds it in one hand and fits parts with the other. Every attached part is a child of the tube, so grabbing the tube carries the whole rocket. At `PrototypeComplete` you get `onPrototypeComplete`. Parts come off only when the state machine allows (section 5.5 of the spec); the cap can be twisted until it locks.
 - **Submit.** Detect the loose complete rocket in your bin (its root has `RocketPart` with `partType == BodyTube`; `assembly.State == PrototypeComplete`). On your Submit button call `TrySubmit()`. It returns false if the rocket is still held or not complete. Then run your bin animation; `SetRocketVisible(false)` hides it when the animation needs that.
 - **Launch.** Read `outcome` from the report in `Submitted` and play the matching animation on the screen. `failedComponents` feeds the failure screen.
 - **Failed launch.** `ReturnPrototype(InspectOnly, yourBinReturnAnchor)` then `BeginNewBuild()`. The old rocket comes back as a frozen object the user can pick up and turn over but not alter; a new kit appears. Only one inspection prototype exists at a time.
-- **Abort.** `ReturnPrototype(Editable, null)`. The same rocket goes back into the stand and can be corrected.
-- A dropped loose part respawns on the pad; a dropped rocket returns to the stand; a dropped inspection prototype returns to its anchor.
+- **Abort.** `ReturnPrototype(Editable, null)`. The same rocket goes back to its bench slot and can be corrected.
+- A dropped loose part respawns on the pad; a dropped rocket returns to the tube's bench slot; a dropped inspection prototype returns to its anchor. The bin and the console top count as inside the workstation bounds.
 
 ## 4. Stubs to delete
 
@@ -55,7 +55,7 @@ Delete the stub object from your scene and the prefab folder when your systems a
 
 ## 5. Things to know
 
-- All parts, the tube and the stand share one guided-attach mechanic (`GuideGrabTransformer`). The attach points are generated from `SourceArt/VR_Rocket_Kit_Parts_v2/attach_points.json` by the menu item VR Rocket > Generate Attach Points On Selected BodyTube; do not hand-edit them.
+- All parts share one guided-attach mechanic (`GuideGrabTransformer`). Rocket parts never collide with each other (`RocketAssembly.ApplyPartCollisionRules`), and attached parts run without rigidbody interpolation, which otherwise makes kinematic children lag behind a carried rocket in VR. The attach points are generated from `SourceArt/VR_Rocket_Kit_Parts_v2/attach_points.json` by the menu item VR Rocket > Generate Attach Points On Selected BodyTube; do not hand-edit them.
 - `Assets/VRRocket/Prefabs/AssembledRocket_Static.prefab` is a plain assembled rocket (no physics or scripts) for your launch animation. `Prefabs/Launch/LaunchVehicle.prefab` is a 36x copy of it stripped to meshes, with the engine flame and sparks at the nozzle, used by the launch sequence below.
 - Tests: Window > General > Test Runner. EditMode covers the outcome rule, state machine, gating, cap ratchet and attach transforms; PlayMode drives every interaction in `Dev_Interactions.unity`. Run them after changing anything under `Assets/VRRocket`.
 - Headset-only checks (feel, haptics, frame rate) are listed in SPEC 12.2 and are Praise's.

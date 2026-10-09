@@ -16,7 +16,7 @@ namespace VRRocket
         public static event Action<RocketPart> PartRespawned;
         public static event Action<RocketPart> CapDetent;      // one ratchet tick of new progress
         public static event Action<RocketPart> CapLocked;
-        public static event Action<RocketPart> PrototypeComplete;   // the stand opens; the tube is the argument
+        public static event Action<RocketPart> PrototypeComplete;   // the rocket is complete and ready to carry; the tube is the argument
         public static event Action<RocketPart, float, bool> PartImpact;  // part, relative speed, hit another part
 
         // immersion haptics

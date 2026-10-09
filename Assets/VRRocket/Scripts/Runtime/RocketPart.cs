@@ -142,18 +142,29 @@ namespace VRRocket
         internal void SetGuided()
         {
             state = PartState.Guided;
+            SetInterpolation(RigidbodyInterpolation.Interpolate);
         }
 
         internal void SetAttached(AttachPoint point)
         {
             attachedTo = point;
             state = PartState.Attached;
+            // An attached part is a kinematic child moved by its parent; interpolating it makes it lag and wobble behind a
+            // carried rocket, so interpolation is only on while the part moves on its own.
+            SetInterpolation(RigidbodyInterpolation.None);
         }
 
         internal void SetFree()
         {
             attachedTo = null;
             state = PartState.Free;
+            SetInterpolation(RigidbodyInterpolation.Interpolate);
+        }
+
+        void SetInterpolation(RigidbodyInterpolation mode)
+        {
+            var b = body;
+            if (b != null && b.interpolation != mode) b.interpolation = mode;
         }
     }
 }

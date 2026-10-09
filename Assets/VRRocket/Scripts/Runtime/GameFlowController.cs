@@ -131,7 +131,7 @@ namespace VRRocket
             {
                 case AssemblyState.AirframeComplete: m_Screen.ShowAssembly(state, "Airframe complete. Insert the motor, nozzle down."); break;
                 case AssemblyState.MotorFitted: m_Screen.ShowAssembly(state, "Motor fitted. Seat the cap and twist it clockwise until it clicks."); break;
-                case AssemblyState.PrototypeComplete: m_Screen.ShowAssembly(state, "Prototype complete. The stand has released it: carry it to the submission bin and press SUBMIT."); break;
+                case AssemblyState.PrototypeComplete: m_Screen.ShowAssembly(state, "Prototype complete. Carry it to the submission bin and press SUBMIT."); break;
                 default: m_Screen.ShowAssembly(state, "Keep building. Three fins, three flaps, the nose cone."); break;
             }
         }
@@ -177,7 +177,7 @@ namespace VRRocket
             if (m_Audio != null) m_Audio.PlayOneShot(m_Buzz);
             if (m_Bin != null) m_Bin.PlayOpen();
             if (m_Assembly != null) m_Assembly.ReturnPrototype(ReturnMode.Editable, null);
-            EnterAssembly("Aborted. The prototype is back in the stand. Correct it and submit again.");
+            EnterAssembly("Aborted. The prototype is back on the bench. Correct it and submit again.");
         }
 
         IEnumerator CountdownRoutine()

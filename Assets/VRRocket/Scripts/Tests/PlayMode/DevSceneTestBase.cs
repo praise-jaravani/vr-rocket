@@ -93,6 +93,23 @@ namespace VRRocket.Tests
             AssemblyEvents.PartHovered += OnHovered;
             AssemblyEvents.KitSpawned += OnKitSpawned;
             yield return new WaitForSeconds(0.5f);
+            StandTubeUpright();
+            yield return null;
+        }
+
+        /// <summary>
+        /// The tube starts flat on the bench; a player holds it upright in the other hand while fitting parts. Tests stand in for that
+        /// hand by parking the tube upright above its tray slot and freezing it there, so the upright seat poses of the part helpers hold.
+        /// </summary>
+        protected void StandTubeUpright()
+        {
+            var tube = Tube;
+            if (tube == null || tube.state != PartState.Free) return;
+            workstation.TryGetTubeHome(out var home, out _);
+            var body = tube.body;
+            if (body != null) { body.linearVelocity = Vector3.zero; body.angularVelocity = Vector3.zero; body.isKinematic = true; }
+            tube.transform.SetPositionAndRotation(home + Vector3.up * 0.2f, workstation.partsTray.rotation);
+            Physics.SyncTransforms();
         }
 
         [UnityTearDown]
@@ -149,11 +166,10 @@ namespace VRRocket.Tests
             throw new AssertionException("no part " + type + "_" + id);
         }
 
-        protected RocketPart Tube => assembly != null && assembly.tube != null ? assembly.tube : workstation.stand.tube;
+        protected RocketPart Tube => assembly.tube;
 
         protected AttachPoint Point(string name)
         {
-            if (name == "StandClamp") return workstation.stand.clamp;
             return Tube.transform.Find("AttachPoints/" + name).GetComponent<AttachPoint>();
         }
 

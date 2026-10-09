@@ -48,7 +48,7 @@ namespace VRRocket.Tests
             Assert.IsTrue(guide.isGuided, "guide engages inside captureRadius");
             Assert.AreEqual(PartState.Guided, nose.state);
             CollectionAssert.Contains(events, "engaged:NoseCone_1@NoseSeat");
-            Assert.Less(Mathf.Abs(Rel().x) + Mathf.Abs(Rel().z), 1e-3f, "on the axis");
+            Assert.Less(Mathf.Abs(Rel().x) + Mathf.Abs(Rel().z), 1e-3f, "on the axis (rel " + Rel().ToString("F4") + ", seat now " + seat.transform.position.ToString("F4") + ", captured seatPos " + seatPos.ToString("F4") + ", tube " + Tube.transform.position.ToString("F4") + " rot " + Tube.transform.eulerAngles.ToString("F1") + ", hand " + controller.position.ToString("F4") + ", point " + (nose.attachedTo != null ? nose.attachedTo.pointName : "guided:" + (guide.isGuided ? "yes" : "no")) + ")");
             Assert.AreEqual(d1 * Fraction(d1), Rel().y, 2e-3f, "displayed depth follows the faded magnetism");
             Assert.Less(Vector3.Angle(nose.transform.up, seat.transform.up), 0.5f, "rotation locked upright");
 
@@ -87,7 +87,7 @@ namespace VRRocket.Tests
             Assert.IsTrue(nose.body.isKinematic);
             Assert.IsFalse(seat.glowRenderer.enabled, "glow off once seated");
             CollectionAssert.Contains(events, "seated:NoseCone_1@NoseSeat");
-            var tubeCollider = workstation.stand.tube.GetComponent<Collider>();
+            var tubeCollider = Tube.GetComponent<Collider>();
             Assert.IsTrue(Physics.GetIgnoreCollision(nose.GetComponent<Collider>(), tubeCollider), "attached part ignores the rocket");
             var feedback = workstation.GetComponent<AssemblyFeedback>();
             var playedSeatClip = false;
@@ -108,7 +108,7 @@ namespace VRRocket.Tests
             Assert.AreEqual(PartState.Free, nose.state);
             Assert.IsFalse(seat.isOccupied);
             CollectionAssert.Contains(events, "removed:NoseCone_1@NoseSeat");
-            Assert.IsFalse(Physics.GetIgnoreCollision(nose.GetComponent<Collider>(), tubeCollider), "loose part collides with the rocket again");
+            Assert.IsTrue(Physics.GetIgnoreCollision(nose.GetComponent<Collider>(), tubeCollider), "parts never collide with the rocket, so a loose part cannot shove it (RocketAssembly.ApplyPartCollisionRules)");
 
             // Drop it: dynamic again, back in its tray group, and it falls
             Release(nose);

@@ -576,7 +576,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2114271196987775531, guid: 4e660da2419d1614198b2c073ddf863d, type: 3}
       propertyPath: m_Enabled
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2351764168754611210, guid: 4e660da2419d1614198b2c073ddf863d, type: 3}
       propertyPath: m_PlayHoverEntered

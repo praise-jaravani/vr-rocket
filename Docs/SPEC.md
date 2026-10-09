@@ -248,10 +248,10 @@ Rules:
 
 ### 5.6 Handling the rocket
 
-- During assembly the body tube is held upright in the assembly stand (section 8.2) and cannot be grabbed. The user works on it with both hands free.
-- At PrototypeComplete the stand releases (sound plus a short vibration on both controllers) and the tube becomes grabbable. Lifting it carries the whole rocket as one object.
-- While the rocket is out of the stand, attached parts cannot be pulled off. Grabbing anywhere grabs the rocket. The one exception is the cap, which can still be twisted while the other hand holds the rocket.
-- Putting the rocket back into the stand (it has its own capture zone and snap) makes the parts editable again.
+- (Changed 9 Oct 2026, Praise's decision after the first headset test: no assembly stand.) The body tube starts flat on the bench like every other part and can be grabbed at any time. The user holds it in one hand and fits parts with the other, or works on it while it rests on the bench. Attach points work in any orientation.
+- Every attached part is a kinematic child of its attach point, so grabbing the tube anywhere carries the whole rocket as one object, at any stage of the build.
+- Removing parts follows the state machine of 5.5 only (the cap can be twisted at any time until it locks). Rocket parts never collide with each other, so a held part cannot shove the tube or knock parts off; parts still collide with the bench and the room.
+- At PrototypeComplete there is a sound plus a short vibration on both controllers; nothing else changes.
 
 ## 6. Feedback [PRAISE]
 
@@ -269,7 +269,7 @@ Every event below needs all three channels where a value is given. Haptic values
 | Cap released early | Nothing | Nothing | Nothing |
 | Rejected placement | Nothing | Nothing | Nothing |
 | Part removed | Part slides out | Soft unseat | 0.2 for 0.04 s |
-| Prototype complete | Stand opens | Stand release | Both hands 0.3 for 0.10 s |
+| Prototype complete | Nothing moves; the rocket is ready to carry | Completion chime (the old stand-release clip) | Both hands 0.3 for 0.10 s |
 | Part hits the desk | | Dull impact, volume by speed | None |
 | Part hits another part | | Sharp impact, volume by speed | None |
 | Part respawns | Part appears on the pad | Soft pop | None |
@@ -299,8 +299,7 @@ Immersion haptics added on 9 Oct 2026 beyond the table above (all tunable, holdi
 | Rocket let go | 0.25 for 0.03 s at 110 Hz | release |
 | Guided travel | 0.07 for 0.01 s at 220 Hz per 4 mm of travel | the slot's texture, the constraint principle made tangible |
 | Cap turning between detents | 0.08 for 0.012 s at 200 Hz per 6 degrees of new progress | thread engaging; detent frames skip it |
-| Rocket lifted out of the stand | 0.35 for 0.05 s at 120 Hz, then 0.15 for 0.06 s | the clamp letting go |
-| Rocket snapped back into the stand | 0.6 for 0.10 s at 80 Hz, then 0.2 for 0.06 s | clunk |
+| Rocket lifted out of the stand, snapped back into the stand | retired with the stand on 9 Oct 2026; the values stay in the feedback library unused | |
 | Submission accepted | both hands 0.5 for 0.12 s at 100 Hz, then 0.3 for 0.15 s | the bin takes it |
 | Fresh kit arrives | both hands 0.15 for 0.04 s at 200 Hz | new build |
 | Push button down / up | 0.6 for 0.03 s at 200 Hz / 0.25 for 0.02 s at 180 Hz, on the pressing hand | mechanical click |
@@ -351,17 +350,15 @@ public sealed class BuildReport {
 
 `Assets/VRRocket/Prefabs/RocketWorkstation.prefab` contains everything in this section. Its root sits on the workstation desk surface. Dropping it into any scene with an XR rig must give a fully working assembly task. A single child, `ScaledRoot`, holds all rocket geometry so that `rocketScale` can enlarge the whole kit without touching any other number.
 
-### 8.2 Assembly stand
+### 8.2 Assembly stand (removed 9 Oct 2026)
 
-- A clamp on a post that holds the body tube upright with the tube's bottom rim `standClearance` (0.20 m, *tunable*) above the desk, so the motor and cap can be fitted from below and every slot is reachable.
-- The clamp grips the tube near the top, between 0.21 and 0.28 m up the tube, where there are no slots.
-- Greybox geometry from primitives is fine. Teammates may replace the art.
-- It stands on the "Spawn Rocket" area of the workstation.
+- There is no stand. The tube lies on the tray with the other parts (its slot is part of the tray layout) and is a normal loose part. `standClearance` in the tuning asset is unused.
+- The "Spawn Rocket" area of the workstation is where the tube lies; a returned or dropped rocket comes back to that slot at rest.
 
 ### 8.3 Parts tray and respawn
 
-- The nine loose parts start laid out on the desk in clear groups: three fins, three flaps, nose cone, motor, cap. Nothing overlaps and everything is within easy reach of the stand.
-- A part that touches the floor, or stays outside the workstation bounds for `respawnDelay`, reappears on the respawn pad next to the stand. A dropped rocket returns to the stand.
+- The body tube and the nine loose parts start laid out flat on the desk in clear groups: tube, three fins, three flaps, nose cone, motor, cap. Nothing overlaps and everything is within easy reach.
+- A part that touches the floor, or stays outside the workstation bounds for `respawnDelay`, reappears on the respawn pad. A dropped rocket returns to the tube's slot on the bench. The submission bin and the console top count as inside the bounds.
 - Respawned objects arrive at rest, never falling from a height.
 
 ### 8.4 Interface for the rest of the project
@@ -381,7 +378,7 @@ public event Action<BuildReport> Submitted;
 public BuildReport GetReport();              // valid from PrototypeComplete onward
 public bool TrySubmit();                     // called by the bin: freezes the rocket, raises Submitted
 public void ReturnPrototype(ReturnMode mode, Transform at);
-public void BeginNewBuild();                 // fresh tube in the stand, fresh parts on the tray
+public void BeginNewBuild();                 // fresh tube and fresh parts on the tray
 ```
 
 Expected use by the flow owner:
@@ -389,7 +386,7 @@ Expected use by the flow owner:
 - **Submit.** The bin detects the complete rocket inside it. The Submit button calls `TrySubmit()`. The bin's animation then takes the rocket away.
 - **Launch.** The launch sequence reads `outcome` from the report and plays the matching animation.
 - **Failed launch.** Call `ReturnPrototype(InspectOnly, binAnchor)` and `BeginNewBuild()`. The old rocket comes back through the bin as a frozen object the user can pick up, turn over and examine, but not alter. New parts appear on the tray. Only one inspection prototype exists at a time.
-- **Abort.** Call `ReturnPrototype(Editable, standAnchor)`. The same rocket returns to the stand and can be corrected.
+- **Abort.** Call `ReturnPrototype(Editable, null)`. The same rocket returns to its bench slot and can be corrected.
 
 Every event is also exposed as a UnityEvent so teammates can wire things in the Inspector.
 
@@ -425,7 +422,7 @@ Recreated from the treatment so the agent knows what the rocket plugs into. The 
 Assets/VRRocket/
   Models/        the six FBX files
   Materials/     Rocket_White, Rocket_Orange, Rocket_Black, Rocket_Cardboard, Glow, particle and screen materials
-  Prefabs/       RocketWorkstation, one prefab per part, AssemblyStand, stubs, Launch/ (LaunchVehicle, Explosion)
+  Prefabs/       RocketWorkstation, one prefab per part, stubs, Launch/ (LaunchVehicle, Explosion)
   Scenes/        Dev_Interactions.unity, Env_ControlRoom.unity
   Scripts/
     Runtime/     VRRocket.Runtime.asmdef, namespace VRRocket
@@ -450,7 +447,6 @@ Read-only folders: `Assets/XRI_Examples` and `Assets/Samples`. Copy from them, n
 | `MotorCapTwist` | Section 5.4 |
 | `RocketAssembly` | State machine of section 5.5, the interface of section 8.4, building the report |
 | `BuildReport` and enums | Section 7. Plain C#, no Unity dependencies, so it is unit-testable |
-| `AssemblyStand` | Holding, releasing and re-capturing the rocket |
 | `PartRespawner` | Section 8.3 |
 | `AssemblyFeedback` | Turns events into glow, audio and haptics using the two settings assets |
 | `ImpactAudio` | Collision sounds |
@@ -518,7 +514,7 @@ Work in this order. Each ends with a commit and a dated entry in `Docs/PROGRESS.
 | M4 | Fins | Three fins in any order, roll corrected |
 | M5 | Flaps | Six slots, both orientations, placements recorded, identical feedback everywhere |
 | M6 | Motor and gating | Reversed motor rejected silently, self-insert animation, state machine of section 5.5 with backward moves |
-| M7 | Completion and handover | Stand release, whole-rocket carry, cap twist while carried, submission stub, report, inspect-only return, new build, abort return |
+| M7 | Completion and handover | Whole-rocket carry, cap twist while carried, submission stub, report, inspect-only return, new build, abort return (the stand release of the original plan was removed on 9 Oct 2026) |
 | M8 | Polish and proof | Impact audio, part-side glow, tuning pass, all automated tests green, Quest build checked for frame rate |
 | M9 | Integration notes | `Docs/INTEGRATION.md` for teammates: how to drop in the prefab, the interface, which stubs to delete |
 
@@ -542,7 +538,7 @@ Work in this order. Each ends with a commit and a dated entry in `Docs/PROGRESS.
 5. The motor presented nozzle-up gets no response at all.
 6. The cap can be felt and heard ratcheting, the lock is unmistakable, and letting go early gives no warning.
 7. The 2 mm gap of an unlocked cap is visible when you look for it and easy to miss when you do not.
-8. A complete rocket lifts out of the stand as one piece and can be carried to the other desk without parts coming off.
+8. A complete rocket can be picked up from the bench as one piece and carried to the other desk without parts coming off or drifting.
 9. The cap can be twisted with one hand while the other holds the rocket.
 10. Dropping any part, and the whole rocket, brings it back correctly.
 11. Each of the four build combinations gives the right report on the readout stub.
@@ -559,7 +555,7 @@ The rocket and interactions are "100% done" when 12.1 is green, 12.2 is fully ti
 | D1 | Lower flap slots | Three slots immediately above the fin slots, same 120 degree spacing | Same height, but turned 60 degrees so they sit between the fins | A 78 mm flap directly above the fins reaches 148 mm, and one centred on the midpoint starts at 111 mm. In line, the two positions collide over 37 mm. Turning the lower set keeps every stated dimension and leaves the correct build exactly as drawn |
 | D2 | Motor base | Slightly wider base stops reverse insertion | Plain cylinder. Reverse insertion is refused by the attach point | The kit cap's bore is 24.4 mm against a 24 mm motor, so a wider base cannot fit under the cap |
 | D3 | Cap rotation | "Quarter turn" in 2.2, "a set number of turns to be determined" in 2.3 | 180 degrees with a tick every 30 degrees, both tunable, ratchet behaviour | Long enough that stopping early is a believable mistake, short enough for two wrist motions |
-| D4 | Body tube | "Standing upright in a cradle", "the only component that is not grabbed" | Held raised in a clamp stand during assembly, then grabbable once the prototype is complete | The motor and cap attach from below, and the finished rocket has to be carried to the bin |
+| D4 | Body tube | "Standing upright in a cradle", "the only component that is not grabbed" | A loose part lying on the bench, grabbable at any time; the user holds it in one hand while fitting parts (the clamp stand of the first implementation was removed on 9 Oct 2026 after the headset test showed it got in the way) | Two-handed assembly feels natural in VR and the finished rocket has to be carried to the bin |
 | D5 | Removing parts | Not covered | Parts can be pulled back out before submission, with the exceptions in 5.5 | Error recovery. It falls out of the slide mechanic for free |
 | D6 | Order of assembly | Figure 2.4 puts the motor after the airframe and the cap after the motor | Enforced, behind a switch | Follows the figure, easy to relax if it feels arbitrary in testing |
 | D7 | Plate thickness | Slots 2.5 mm wide | Fins and flaps are 2.0 mm thick (the kit fin was 1.55 mm) | Thin plates are hard to see and grab in a headset |

@@ -11,12 +11,13 @@ namespace VRRocket
     /// The one component other systems talk to (SPEC.md section 8.4): the state machine of 5.5 with gating and backward moves,
     /// the handling rules of 5.6, the build report of section 7, submission, prototype return and new builds.
     /// Lives on the RocketWorkstation prefab root. Every event is also exposed as a UnityEvent for Inspector wiring.
+    /// The body tube is a loose part like any other: it starts flat on the bench, parts attach to it wherever it is (held or
+    /// resting), and every attached part is a kinematic child of its attach point, so the rocket moves as one object.
     /// </summary>
     public sealed class RocketAssembly : MonoBehaviour
     {
         [SerializeField] AssemblyTuning m_Tuning;
         [SerializeField] RocketWorkstation m_Workstation;
-        [SerializeField] AssemblyStand m_Stand;
         [SerializeField] PartRespawner m_Respawner;
 
         [Header("Inspector events")]
@@ -34,6 +35,7 @@ namespace VRRocket
         readonly AssemblyStateMachine m_Machine = new AssemblyStateMachine();
         readonly Dictionary<int, FlapPlacement> m_FlapPlacements = new Dictionary<int, FlapPlacement>();
         readonly List<RocketPart> m_Scratch = new List<RocketPart>(16);
+        readonly List<Collider> m_ColliderScratch = new List<Collider>(64);
 
         RocketPart m_Tube;
         MotorCapTwist m_CapTwist;
@@ -52,9 +54,6 @@ namespace VRRocket
         public AssemblyStateMachine machine => m_Machine;
         public BuildReport lastReport => m_LastReport;
 
-        /// <summary>Is the working rocket clamped in the stand (parts editable)?</summary>
-        public bool inStand => m_Tube != null && m_Stand != null && m_Stand.clamp != null && m_Tube.attachedTo == m_Stand.clamp && m_Tube.state == PartState.Attached;
-
         public bool enforceOrder
         {
             get => m_Machine.enforceOrder;
@@ -70,9 +69,9 @@ namespace VRRocket
             set { m_InteractionEnabled = value; RefreshGating(); }
         }
 
-        public void Configure(AssemblyTuning tuning, RocketWorkstation workstation, AssemblyStand stand, PartRespawner respawner)
+        public void Configure(AssemblyTuning tuning, RocketWorkstation workstation, PartRespawner respawner)
         {
-            m_Tuning = tuning; m_Workstation = workstation; m_Stand = stand; m_Respawner = respawner;
+            m_Tuning = tuning; m_Workstation = workstation; m_Respawner = respawner;
         }
 
         void Awake()
@@ -81,11 +80,10 @@ namespace VRRocket
             if (m_Workstation != null)
             {
                 if (m_Tuning == null) m_Tuning = m_Workstation.tuning;
-                if (m_Stand == null) m_Stand = m_Workstation.stand;
                 if (m_Respawner == null) m_Respawner = m_Workstation.respawner;
+                m_Tube = m_Workstation.tube;
             }
             if (m_Tuning != null) m_Machine.enforceOrder = m_Tuning.enforceOrder;
-            if (m_Stand != null) m_Tube = m_Stand.tube;
             m_LastState = State;
         }
 
@@ -104,12 +102,13 @@ namespace VRRocket
         void Start()
         {
             RefreshGating();
+            ApplyPartCollisionRules();
         }
 
         void Update()
         {
             var delay = m_Tuning != null ? m_Tuning.respawnDelay : 1.5f;
-            // a dropped working rocket goes back to the stand
+            // a dropped working rocket goes back to its spot on the bench
             if (m_Tube != null && !m_Frozen && m_Tube.state == PartState.Free && !m_Tube.isHeld && m_Respawner != null)
             {
                 if (m_Respawner.IsOutOfBounds(m_Tube.transform.position, out var below))
@@ -118,7 +117,7 @@ namespace VRRocket
                     if (below || m_TubeOutsideTimer >= delay)
                     {
                         m_TubeOutsideTimer = 0f;
-                        m_Stand.Hold(m_Tube);
+                        ReturnTubeHome();
                         AssemblyEvents.RaisePartRespawned(m_Tube);
                         RefreshGating();
                     }
@@ -142,17 +141,23 @@ namespace VRRocket
             }
         }
 
+        /// <summary>Puts the working rocket back at rest on its bench spot (the tube's tray slot).</summary>
+        void ReturnTubeHome()
+        {
+            if (m_Tube == null) return;
+            var body = m_Tube.body;
+            if (m_Workstation != null && m_Respawner != null && m_Workstation.TryGetTubeHome(out var pos, out var rot))
+                m_Respawner.PlaceAtRest(m_Tube, pos, rot);
+            else if (body != null) body.isKinematic = false;
+        }
+
         // ---- state machine input ----
 
         bool IsWorkingRocketPoint(AttachPoint point) => point != null && m_Tube != null && point.tube == m_Tube;
 
         void OnPartSeated(RocketPart part, AttachPoint point)
         {
-            if (part.partType == PartType.BodyTube)
-            {
-                if (m_Stand != null && point == m_Stand.clamp) { m_Tube = part; RefreshGating(); }
-                return;
-            }
+            if (part.partType == PartType.BodyTube) return;
             if (!IsWorkingRocketPoint(point)) return;
             if (part.partType == PartType.WingFlap) RecordFlap(part, point);
             if (part.partType == PartType.MotorCap) m_CapTwist = part.GetComponent<MotorCapTwist>();
@@ -164,11 +169,7 @@ namespace VRRocket
 
         void OnPartRemoved(RocketPart part, AttachPoint point)
         {
-            if (part.partType == PartType.BodyTube)
-            {
-                if (m_Stand != null && point == m_Stand.clamp) RefreshGating();
-                return;
-            }
+            if (part.partType == PartType.BodyTube) return;
             if (!IsWorkingRocketPoint(point)) return;
             if (part.partType == PartType.WingFlap) m_FlapPlacements.Remove(part.partId);
             if (part.partType == PartType.MotorCap) m_CapTwist = null;
@@ -206,18 +207,37 @@ namespace VRRocket
             }
         }
 
-        /// <summary>Pushes the gating of 5.5 into every attach point of the working rocket and the stand.</summary>
+        /// <summary>Pushes the gating of 5.5 into every attach point of the working rocket.</summary>
         public void RefreshGating()
         {
             var points = AttachPoint.active;
             for (var i = 0; i < points.Count; i++)
             {
                 var ap = points[i];
-                if (m_Stand != null && ap == m_Stand.clamp) { ap.gatingAllows = m_InteractionEnabled; continue; }
                 var owner = ap.tube;
                 if (owner != null && owner == m_Tube) ap.gatingAllows = m_InteractionEnabled && !m_Frozen && m_Machine.Allows(ap.accepts);
                 else ap.gatingAllows = false;   // points of an inspection prototype, or of nothing
             }
+        }
+
+        /// <summary>
+        /// Rocket parts never collide with each other: the guided mechanic assembles them, and a held part must not shove the
+        /// tube around the bench or knock attached parts. Parts still collide with the bench, the floor and the room.
+        /// </summary>
+        public void ApplyPartCollisionRules()
+        {
+            m_ColliderScratch.Clear();
+            void Collect(RocketPart p)
+            {
+                if (p == null) return;
+                foreach (var c in p.GetComponentsInChildren<Collider>(true)) if (!c.isTrigger) m_ColliderScratch.Add(c);
+            }
+            if (m_Respawner != null) foreach (var p in m_Respawner.parts) Collect(p);
+            Collect(m_Tube);
+            Collect(m_InspectPrototype);
+            for (var i = 0; i < m_ColliderScratch.Count; i++)
+                for (var j = i + 1; j < m_ColliderScratch.Count; j++)
+                    Physics.IgnoreCollision(m_ColliderScratch[i], m_ColliderScratch[j], true);
         }
 
         // ---- grab permission (5.5 removal exceptions, 5.6 handling, inspect-only) ----
@@ -230,15 +250,9 @@ namespace VRRocket
             var isInspect = m_InspectPrototype != null && (part == m_InspectPrototype || (part.attachedTo != null && part.attachedTo.tube == m_InspectPrototype));
             if (isInspect) return part == m_InspectPrototype;   // examine the frozen rocket, never alter it
             if (m_Frozen) return false;
-            if (part.partType == PartType.BodyTube)
-                return part.state != PartState.Attached || m_Machine.CanRemove(PartType.BodyTube);
+            if (part.partType == PartType.BodyTube) return true;   // the working rocket can always be picked up; grabbing anywhere grabs the whole rocket
             if (part.state != PartState.Attached) return true;
             if (part.attachedTo == null || part.attachedTo.tube != m_Tube) return true;
-            if (!inStand)
-            {
-                // Out of the stand nothing comes off; the cap can still be twisted unless it is locked.
-                return part.partType == PartType.MotorCap && !(m_CapTwist != null && m_CapTwist.capLocked);
-            }
             return m_Machine.CanRemove(part.partType);
         }
 
@@ -257,7 +271,7 @@ namespace VRRocket
             return BuildReport.Build(flaps, capLocked);
         }
 
-        /// <summary>Called by the bin: freezes the rocket and raises Submitted. False unless the prototype is complete and loose.</summary>
+        /// <summary>Called by the bin: freezes the rocket and raises Submitted. False unless the prototype is complete and not held.</summary>
         public bool TrySubmit()
         {
             if (m_Tube == null || State != AssemblyState.PrototypeComplete) return false;
@@ -283,7 +297,7 @@ namespace VRRocket
             if (m_Tube != null) m_Tube.gameObject.SetActive(visible);
         }
 
-        /// <summary>Brings the submitted rocket back: editable into the stand, or frozen at <paramref name="at"/> for inspection.</summary>
+        /// <summary>Brings the submitted rocket back: editable onto its bench spot, or frozen at <paramref name="at"/> for inspection.</summary>
         public void ReturnPrototype(ReturnMode mode, Transform at)
         {
             if (m_Tube == null) return;
@@ -294,7 +308,7 @@ namespace VRRocket
                 m_InspectPrototype = m_Tube;
                 m_InspectAnchor = at;
                 var guide = m_Tube.GetComponent<GuideGrabTransformer>();
-                if (guide != null) guide.enabled = false;        // it must never re-seat in the stand
+                if (guide != null) guide.enabled = false;        // it must never attach to anything again
                 if (m_Tube.attachedTo != null) { m_Tube.attachedTo.ClearAttached(); }
                 m_Tube.SetFree();
                 m_Tube.transform.SetParent(m_Workstation != null ? m_Workstation.scaledRoot : transform, true);
@@ -309,13 +323,15 @@ namespace VRRocket
             {
                 m_Frozen = false;
                 m_Machine.SetSubmitted(false);
-                if (m_Tube.attachedTo != null && m_Tube.attachedTo != m_Stand.clamp) m_Tube.attachedTo.ClearAttached();
-                m_Stand.Hold(m_Tube);
+                if (m_Tube.attachedTo != null) m_Tube.attachedTo.ClearAttached();
+                m_Tube.SetFree();
+                if (m_Tube.homeParent != null && m_Tube.transform.parent != m_Tube.homeParent) m_Tube.transform.SetParent(m_Tube.homeParent, true);
+                ReturnTubeHome();
                 AfterChange();
             }
         }
 
-        /// <summary>Fresh tube in the stand, fresh parts on the tray. The inspection prototype, if any, is left alone.</summary>
+        /// <summary>Fresh tube and fresh parts on the tray. The inspection prototype, if any, is left alone.</summary>
         public void BeginNewBuild()
         {
             if (m_Workstation == null || !m_Workstation.canSpawnKit)
@@ -344,13 +360,13 @@ namespace VRRocket
             var newParts = new List<RocketPart>();
             var tube = m_Workstation.SpawnKit(newParts);
             if (m_Respawner != null) m_Respawner.SetParts(newParts);
-            m_Stand.Hold(tube);
             m_Tube = tube;
             m_Machine.Reset();
             m_FlapPlacements.Clear();
             m_CapTwist = null;
             m_Frozen = false;
             m_TubeOutsideTimer = 0f;
+            ApplyPartCollisionRules();
             AfterChange();
             AssemblyEvents.RaiseKitSpawned();
         }

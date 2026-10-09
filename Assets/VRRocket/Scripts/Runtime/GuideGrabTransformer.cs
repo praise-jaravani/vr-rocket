@@ -377,6 +377,7 @@ namespace VRRocket
                 m_Body.angularVelocity = Vector3.zero;
             }
             m_Body.isKinematic = true;
+            m_Body.interpolation = RigidbodyInterpolation.None;   // the seat animation drives the transform; interpolation would overwrite it
             var startPos = transform.position;
             var startRot = transform.rotation;
             var elapsed = 0f;
@@ -401,8 +402,11 @@ namespace VRRocket
                 m_Body.angularVelocity = Vector3.zero;
             }
             m_Body.isKinematic = true;
+            m_Body.interpolation = RigidbodyInterpolation.None;
             transform.SetPositionAndRotation(SeatPosition, m_HandlerActive || m_FromAttached ? transform.rotation : m_SeatedRotation);
             transform.SetParent(m_Point.transform, true);
+            m_Body.position = transform.position;
+            m_Body.rotation = transform.rotation;
             m_Point.SetAttached(m_Part);
             m_Part.SetAttached(m_Point);
             m_FromAttached = false;
@@ -424,11 +428,7 @@ namespace VRRocket
             }
             else
             {
-                foreach (var c in m_IgnoredColliders)
-                {
-                    if (c == null) continue;
-                    foreach (var own in m_OwnColliders) Physics.IgnoreCollision(own, c, false);
-                }
+                // Parts never collide with each other (RocketAssembly.ApplyPartCollisionRules), so nothing is restored.
                 m_IgnoredColliders.Clear();
             }
         }
