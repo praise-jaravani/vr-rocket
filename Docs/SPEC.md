@@ -249,8 +249,8 @@ Rules:
 ### 5.6 Handling the rocket
 
 - (Changed 9 Oct 2026, Praise's decision after the first headset test: no assembly stand.) The body tube starts flat on the bench like every other part and can be grabbed at any time. The user holds it in one hand and fits parts with the other, or works on it while it rests on the bench. Attach points work in any orientation.
-- Every attached part is a kinematic child of its attach point, so grabbing the tube anywhere carries the whole rocket as one object, at any stage of the build.
-- Removing parts follows the state machine of 5.5 only (the cap can be twisted at any time until it locks). Rocket parts never collide with each other, so a held part cannot shove the tube or knock parts off; parts still collide with the bench and the room.
+- Every attached part is a kinematic child of its attach point, and its colliders are mirrored onto the tube's own rigidbody (compound collider), so the rocket is one physical unit: it rests on its fins, is pushed as one piece, and grabbing the tube anywhere carries the whole rocket at any stage of the build.
+- While the rocket is in a hand, attached parts cannot be grabbed; only the cap can be worked on with the other hand (twisted until it locks). Parts come off only from a resting rocket, by a deliberate pull along their guide, and only when the state machine of 5.5 allows. Rocket parts never collide with each other, so a held part cannot shove the tube or knock parts off; parts still collide with the bench and the room.
 - At PrototypeComplete there is a sound plus a short vibration on both controllers; nothing else changes.
 
 ## 6. Feedback [PRAISE]

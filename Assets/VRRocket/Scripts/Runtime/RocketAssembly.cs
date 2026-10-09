@@ -36,6 +36,7 @@ namespace VRRocket
         readonly Dictionary<int, FlapPlacement> m_FlapPlacements = new Dictionary<int, FlapPlacement>();
         readonly List<RocketPart> m_Scratch = new List<RocketPart>(16);
         readonly List<Collider> m_ColliderScratch = new List<Collider>(64);
+        readonly Dictionary<RocketPart, GameObject> m_Proxies = new Dictionary<RocketPart, GameObject>();
 
         RocketPart m_Tube;
         MotorCapTwist m_CapTwist;
@@ -161,6 +162,7 @@ namespace VRRocket
             if (!IsWorkingRocketPoint(point)) return;
             if (part.partType == PartType.WingFlap) RecordFlap(part, point);
             if (part.partType == PartType.MotorCap) m_CapTwist = part.GetComponent<MotorCapTwist>();
+            AddProxyColliders(part);
             m_Machine.Apply(part.partType, true);
             PartAttached?.Invoke();
             onPartAttached.Invoke();
@@ -173,6 +175,7 @@ namespace VRRocket
             if (!IsWorkingRocketPoint(point)) return;
             if (part.partType == PartType.WingFlap) m_FlapPlacements.Remove(part.partId);
             if (part.partType == PartType.MotorCap) m_CapTwist = null;
+            RemoveProxyColliders(part);
             m_Machine.Apply(part.partType, false);
             PartRemoved?.Invoke();
             onPartRemoved.Invoke();
@@ -221,6 +224,40 @@ namespace VRRocket
         }
 
         /// <summary>
+        /// The rocket is one physical unit: an attached part's colliders are mirrored onto a child of the tube, so the tube's
+        /// single rigidbody carries the whole assembled shape (it rests on its fins, it is pushed as one piece). The part keeps its
+        /// own kinematic body and collider only so it can be hovered and grabbed for removal.
+        /// </summary>
+        void AddProxyColliders(RocketPart part)
+        {
+            if (m_Tube == null || part == null || m_Proxies.ContainsKey(part)) return;
+            var go = new GameObject("Compound_" + part.name);
+            go.layer = m_Tube.gameObject.layer;
+            go.transform.SetParent(m_Tube.transform, false);
+            go.transform.SetPositionAndRotation(part.transform.position, part.transform.rotation);
+            foreach (var src in part.GetComponents<Collider>())
+            {
+                if (src.isTrigger) continue;
+                switch (src)
+                {
+                    case BoxCollider b: { var d = go.AddComponent<BoxCollider>(); d.center = b.center; d.size = b.size; d.sharedMaterial = b.sharedMaterial; break; }
+                    case CapsuleCollider c: { var d = go.AddComponent<CapsuleCollider>(); d.center = c.center; d.radius = c.radius; d.height = c.height; d.direction = c.direction; d.sharedMaterial = c.sharedMaterial; break; }
+                    case SphereCollider sp: { var d = go.AddComponent<SphereCollider>(); d.center = sp.center; d.radius = sp.radius; d.sharedMaterial = sp.sharedMaterial; break; }
+                    case MeshCollider m: { var d = go.AddComponent<MeshCollider>(); d.sharedMesh = m.sharedMesh; d.convex = true; d.sharedMaterial = m.sharedMaterial; break; }
+                }
+            }
+            m_Proxies[part] = go;
+            ApplyPartCollisionRules();
+        }
+
+        void RemoveProxyColliders(RocketPart part)
+        {
+            if (part == null || !m_Proxies.TryGetValue(part, out var go)) return;
+            m_Proxies.Remove(part);
+            if (go != null) Destroy(go);
+        }
+
+        /// <summary>
         /// Rocket parts never collide with each other: the guided mechanic assembles them, and a held part must not shove the
         /// tube around the bench or knock attached parts. Parts still collide with the bench, the floor and the room.
         /// </summary>
@@ -253,6 +290,9 @@ namespace VRRocket
             if (part.partType == PartType.BodyTube) return true;   // the working rocket can always be picked up; grabbing anywhere grabs the whole rocket
             if (part.state != PartState.Attached) return true;
             if (part.attachedTo == null || part.attachedTo.tube != m_Tube) return true;
+            // While the rocket is in a hand, grabbing anywhere grabs the rocket; only the cap can be worked on with the other hand.
+            // Parts come off only from a resting rocket, by a deliberate pull along their guide, and only when the state machine allows.
+            if (m_Tube.isHeld) return part.partType == PartType.MotorCap && !(m_CapTwist != null && m_CapTwist.capLocked);
             return m_Machine.CanRemove(part.partType);
         }
 
@@ -360,6 +400,7 @@ namespace VRRocket
             var newParts = new List<RocketPart>();
             var tube = m_Workstation.SpawnKit(newParts);
             if (m_Respawner != null) m_Respawner.SetParts(newParts);
+            m_Proxies.Clear();   // the old tube took its compound colliders with it
             m_Tube = tube;
             m_Machine.Reset();
             m_FlapPlacements.Clear();

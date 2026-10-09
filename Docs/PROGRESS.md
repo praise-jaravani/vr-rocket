@@ -217,3 +217,14 @@ Praise ran the first Quest 3 build (APK via Build Profiles, installed over USB).
 - **Tests.** Play-mode tests stand the tube upright and freeze it in `SetUpScene` (`StandTubeUpright`), standing in for the player's other hand, so the upright seat poses of the helpers hold. FullFlowTests rewritten for the bench (carry from the bench, inspect-only return with the fresh tube on its slot, abort back to the bench, dropped rocket back to the bench). 31/31 edit-mode, 14/14 play-mode.
 
 **Not verified in the headset**: the new bench layout, two-handed assembly feel, parts staying put while carrying, teleport arc and snap turn. The spawn point is still 1.3 m from the bench; teleport or walk up to it.
+
+## 2026-10-09: Second headset test, one-piece rocket and reachable console (done)
+
+Praise reported parts (the cone) coming off the assembled rocket, wobble when working the cap, and console buttons out of reach from the player's side.
+
+- **One physical unit.** Attached parts stayed separate kinematic bodies, so the tube's rigidbody knew nothing of its fins and cone: the rocket rested on its round tube (free to roll), and an accidental grip near the top grabbed the removable cone instead of the rocket. Now `RocketAssembly` mirrors every attached part's colliders onto a `Compound_<part>` child of the tube (box, capsule, sphere, convex mesh), so one rigidbody carries the assembled shape; the part keeps its own kinematic body only for hover and grab. Proxies are removed on detach and die with the tube on a new build.
+- **Grab rule.** While the rocket is in a hand, attached parts cannot be grabbed; only the cap can be twisted with the other hand. Parts come off only from a resting rocket by a deliberate pull along the guide, when the state machine allows. This restores the SPEC 5.6 intent without the stand.
+- **Console.** The control panel (Submit, puzzle, Launch, Abort) moved from the back edge of the console to the front edge: buttons are now 0.25 m in from the player's side at 1.14 m height. The decorative telemetry screens moved to a new back panel. Button wiring is unchanged (same objects).
+- Research used: Unity's collider and rigidbody manuals on compound colliders and kinematic bodies, and XRI's grab interactable docs on movement types. The alternative of removing part rigidbodies on attach was rejected because XRI's grab interactable requires one.
+
+**Verified**: 14/14 play-mode (compound colliders do not disturb the guided mechanic, carry, submission, returns). **Not verified in the headset**: the feel of the one-piece rocket, cap twist stability, button reach. If the cone still comes off, the next step is to require a two-handed pull (rocket held in one hand) for removal.
