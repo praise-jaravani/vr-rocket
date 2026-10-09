@@ -38,3 +38,16 @@ Downloaded but not used (kept in `SourceArt/Environment/polyhaven`, CC0): metal_
 |---|---|---|---|---|
 | XR Interaction Toolkit Examples 3.4.0 | Unity Technologies | https://github.com/Unity-Technologies/XR-Interaction-Toolkit-Examples | Unity Companion License | XR rig, push button prefab (copied to Environment/Prefabs), placeholder audio clips |
 | TextMesh Pro (LiberationSans SDF) | Unity Technologies / Red Hat (font) | Unity package | Unity Companion License / SIL OFL (font) | all placeholder text |
+
+## Menu and launch sequence (added 9 Oct 2026)
+
+| Asset | Author | Source | Licence | Downloaded | Used for |
+|---|---|---|---|---|---|
+| Particle Pack 1.1 | Kenney (kenney.nl) | https://kenney.nl/assets/particle-pack | CC0 | 2026-10-09 | engine flame, smoke, sparks, explosion sprites |
+| UI Pack - Sci-Fi (space expansion) | Kenney | https://kenney.nl/assets/ui-pack-sci-fi | CC0 | 2026-10-09 | menu button and panel graphics |
+| Sci-Fi Sounds | Kenney | https://kenney.nl/assets/sci-fi-sounds | CC0 | 2026-10-09 | engine loop, ignition, explosions, computer noise |
+| Impact Sounds | Kenney | https://kenney.nl/assets/impact-sounds | CC0 | 2026-10-09 | part impacts on the desk and on each other |
+| Orbitron (variable) | Matt McInerney | https://github.com/google/fonts/tree/main/ofl/orbitron | SIL Open Font License 1.1 | 2026-10-09 | menu and screen titles |
+| Share Tech Mono | Carrois Apostrophe | https://github.com/google/fonts/tree/main/ofl/sharetechmono | SIL Open Font License 1.1 | 2026-10-09 | telemetry and body text |
+
+Originals under `SourceArt/Kenney/` and `SourceArt/Menu/fonts/` with their licence texts. Only the files actually used go into `Assets`.

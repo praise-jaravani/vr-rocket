@@ -1,0 +1,1 @@
+Downloads Kenney packs through the local Chrome DevTools portal (port 9222) with Playwright: reads the direct zip link from each asset page and fetches it. Usage: python kenney_download_via_chrome_portal.py OUT_ROOT SLUG [SLUG...]

@@ -61,6 +61,15 @@ namespace VRRocket
             set { m_Machine.enforceOrder = value; RefreshGating(); }
         }
 
+        bool m_InteractionEnabled = true;
+
+        /// <summary>The flow switches this off outside the Assembly phase: nothing can be grabbed and no point accepts anything.</summary>
+        public bool interactionEnabled
+        {
+            get => m_InteractionEnabled;
+            set { m_InteractionEnabled = value; RefreshGating(); }
+        }
+
         public void Configure(AssemblyTuning tuning, RocketWorkstation workstation, AssemblyStand stand, PartRespawner respawner)
         {
             m_Tuning = tuning; m_Workstation = workstation; m_Stand = stand; m_Respawner = respawner;
@@ -204,9 +213,9 @@ namespace VRRocket
             for (var i = 0; i < points.Count; i++)
             {
                 var ap = points[i];
-                if (m_Stand != null && ap == m_Stand.clamp) { ap.gatingAllows = true; continue; }
+                if (m_Stand != null && ap == m_Stand.clamp) { ap.gatingAllows = m_InteractionEnabled; continue; }
                 var owner = ap.tube;
-                if (owner != null && owner == m_Tube) ap.gatingAllows = !m_Frozen && m_Machine.Allows(ap.accepts);
+                if (owner != null && owner == m_Tube) ap.gatingAllows = m_InteractionEnabled && !m_Frozen && m_Machine.Allows(ap.accepts);
                 else ap.gatingAllows = false;   // points of an inspection prototype, or of nothing
             }
         }
@@ -217,6 +226,7 @@ namespace VRRocket
         public bool CanGrab(RocketPart part)
         {
             if (part == null) return false;
+            if (!m_InteractionEnabled) return false;
             var isInspect = m_InspectPrototype != null && (part == m_InspectPrototype || (part.attachedTo != null && part.attachedTo.tube == m_InspectPrototype));
             if (isInspect) return part == m_InspectPrototype;   // examine the frozen rocket, never alter it
             if (m_Frozen) return false;
