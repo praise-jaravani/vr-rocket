@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
@@ -5,16 +6,20 @@ namespace VRRocket
 {
     /// <summary>
     /// Turns assembly events into audio and haptics using the <see cref="FeedbackLibrary"/> (SPEC.md section 6).
-    /// Glow is driven by the attach points themselves. Sounds are 3D and play from the attach point or the part.
-    /// Rejected placements and break-aways get nothing, on purpose.
+    /// Glow is driven by the attach points and parts themselves. Sounds are 3D and play from the attach point or the part.
+    /// Rejected placements, break-aways and an early let-go of the cap get nothing, on purpose.
     /// </summary>
     public sealed class AssemblyFeedback : MonoBehaviour
     {
         [SerializeField] FeedbackLibrary m_Library;
         [SerializeField, Range(1, 8)] int m_AudioSourceCount = 4;
+        [SerializeField, Tooltip("Impact speed (m/s) that plays at full volume.")] float m_ImpactFullVolumeSpeed = 2.5f;
 
         AudioSource[] m_Sources;
         int m_NextSource;
+        readonly List<XRBaseInputInteractor> m_Hands = new List<XRBaseInputInteractor>(2);
+
+        public static AssemblyFeedback instance { get; private set; }
 
         public FeedbackLibrary library
         {
@@ -24,6 +29,7 @@ namespace VRRocket
 
         void Awake()
         {
+            instance = this;
             m_Sources = new AudioSource[m_AudioSourceCount];
             for (var i = 0; i < m_AudioSourceCount; i++)
             {
@@ -47,6 +53,8 @@ namespace VRRocket
             AssemblyEvents.PartRespawned += OnPartRespawned;
             AssemblyEvents.CapDetent += OnCapDetent;
             AssemblyEvents.CapLocked += OnCapLocked;
+            AssemblyEvents.PrototypeComplete += OnPrototypeComplete;
+            AssemblyEvents.PartImpact += OnPartImpact;
         }
 
         void OnDisable()
@@ -57,6 +65,43 @@ namespace VRRocket
             AssemblyEvents.PartRespawned -= OnPartRespawned;
             AssemblyEvents.CapDetent -= OnCapDetent;
             AssemblyEvents.CapLocked -= OnCapLocked;
+            AssemblyEvents.PrototypeComplete -= OnPrototypeComplete;
+            AssemblyEvents.PartImpact -= OnPartImpact;
+            if (instance == this) instance = null;
+        }
+
+        void OnGuideEngaged(RocketPart part, AttachPoint point)
+        {
+            if (m_Library == null) return;
+            PlayAt(m_Library.guideEngage, point.transform.position);
+            SendHaptic(part, m_Library.hapticGuideEngage);
+        }
+
+        void OnPartSeated(RocketPart part, AttachPoint point)
+        {
+            if (m_Library == null) return;
+            if (part.partType == PartType.BodyTube)
+            {
+                // the rocket snapping back into the stand: reuse the seat click, no haptic value is specified
+                PlayAt(m_Library.seat, point.transform.position);
+                return;
+            }
+            PlayAt(m_Library.SeatClipFor(part.partType), point.transform.position);
+            SendHaptic(part, m_Library.SeatHapticFor(part.partType));
+        }
+
+        void OnPartRemoved(RocketPart part, AttachPoint point)
+        {
+            if (m_Library == null) return;
+            if (part.partType == PartType.BodyTube) return;   // lifting the finished rocket out of the stand is silent
+            PlayAt(m_Library.unseat, point.transform.position);
+            SendHaptic(part, m_Library.hapticPartRemoved);
+        }
+
+        void OnPartRespawned(RocketPart part)
+        {
+            if (m_Library == null) return;
+            PlayAt(m_Library.respawnPop, part.transform.position);
         }
 
         void OnCapDetent(RocketPart part)
@@ -73,41 +118,28 @@ namespace VRRocket
             SendHaptic(part, m_Library.hapticCapLock);
         }
 
-        void OnGuideEngaged(RocketPart part, AttachPoint point)
+        void OnPrototypeComplete(RocketPart tube)
         {
             if (m_Library == null) return;
-            PlayAt(m_Library.guideEngage, point.transform.position);
-            SendHaptic(part, m_Library.hapticGuideEngage);
+            PlayAt(m_Library.standRelease, tube != null ? tube.transform.position : transform.position);
+            SendHapticBothHands(m_Library.hapticPrototypeComplete);
         }
 
-        void OnPartSeated(RocketPart part, AttachPoint point)
+        void OnPartImpact(RocketPart part, float speed, bool hitPart)
         {
             if (m_Library == null) return;
-            PlayAt(m_Library.SeatClipFor(part.partType), point.transform.position);
-            SendHaptic(part, m_Library.SeatHapticFor(part.partType));
-        }
-
-        void OnPartRemoved(RocketPart part, AttachPoint point)
-        {
-            if (m_Library == null) return;
-            PlayAt(m_Library.unseat, point.transform.position);
-            SendHaptic(part, m_Library.hapticPartRemoved);
-        }
-
-        void OnPartRespawned(RocketPart part)
-        {
-            if (m_Library == null) return;
-            PlayAt(m_Library.respawnPop, part.transform.position);
+            var volume = Mathf.Clamp01(speed / Mathf.Max(0.01f, m_ImpactFullVolumeSpeed));
+            PlayAt(hitPart ? m_Library.impactPart : m_Library.impactDesk, part.transform.position, volume);
         }
 
         /// <summary>Plays a clip as a 3D sound at a world position using the pooled sources. No allocation.</summary>
-        public void PlayAt(AudioClip clip, Vector3 position)
+        public void PlayAt(AudioClip clip, Vector3 position, float volume = 1f)
         {
             if (clip == null || m_Sources == null) return;
             var src = m_Sources[m_NextSource];
             m_NextSource = (m_NextSource + 1) % m_Sources.Length;
             src.transform.position = position;
-            src.volume = m_Library != null ? m_Library.volume : 1f;
+            src.volume = (m_Library != null ? m_Library.volume : 1f) * volume;
             src.clip = clip;
             src.Play();
         }
@@ -119,6 +151,19 @@ namespace VRRocket
             var interactor = part.lastHoldingInteractor as XRBaseInputInteractor;
             if (interactor == null) return false;
             return interactor.SendHapticImpulse(haptic.amplitude, haptic.duration);
+        }
+
+        /// <summary>Sends an impulse to both hands (the near-far interactors of the rig).</summary>
+        public void SendHapticBothHands(FeedbackLibrary.Haptic haptic)
+        {
+            if (haptic.amplitude <= 0f || haptic.duration <= 0f) return;
+            m_Hands.RemoveAll(h => h == null);
+            if (m_Hands.Count == 0)
+            {
+                foreach (var nf in FindObjectsByType<NearFarInteractor>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                    m_Hands.Add(nf);
+            }
+            foreach (var h in m_Hands) h.SendHapticImpulse(haptic.amplitude, haptic.duration);
         }
     }
 }

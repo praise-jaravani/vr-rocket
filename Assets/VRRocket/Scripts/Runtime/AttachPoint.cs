@@ -61,7 +61,8 @@ namespace VRRocket
             {
                 if (isSlot) return transform.forward;
                 // Seats: the guide extends away from the tube. Nose above (+Y), motor and cap below (-Y).
-                return m_Accepts == PartType.NoseCone ? transform.up : -transform.up;
+                // The stand's point lifts the tube out upward.
+                return m_Accepts == PartType.NoseCone || m_Accepts == PartType.BodyTube ? transform.up : -transform.up;
             }
         }
 
@@ -135,6 +136,7 @@ namespace VRRocket
         /// <summary>Maps an attach point name from attach_points.json to the part type it accepts.</summary>
         public static PartType AcceptsFromName(string pointName)
         {
+            if (pointName == "StandClamp") return PartType.BodyTube;
             if (pointName.StartsWith("FinSlot")) return PartType.TailFin;
             if (pointName.StartsWith("FlapSlot")) return PartType.WingFlap;
             if (pointName == "NoseSeat") return PartType.NoseCone;

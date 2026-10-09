@@ -42,11 +42,35 @@ namespace VRRocket
                 foreach (var p in GetComponentsInChildren<RocketPart>(true))
                     if (p.partType != PartType.BodyTube) m_Parts.Add(p);
             }
+            RegisterParts();
+        }
+
+        void RegisterParts()
+        {
+            m_TrayPoses.Clear();
+            m_OutsideTimers.Clear();
             foreach (var p in m_Parts)
             {
+                if (p == null) continue;
                 m_TrayPoses[p] = new Pose(p.transform.localPosition, p.transform.localRotation);
                 m_OutsideTimers[p] = 0f;
             }
+        }
+
+        /// <summary>Replaces the managed parts (a fresh kit after a new build).</summary>
+        public void SetParts(IEnumerable<RocketPart> parts)
+        {
+            m_Parts.Clear();
+            m_Parts.AddRange(parts);
+            RegisterParts();
+        }
+
+        /// <summary>Is this world position below the floor level or outside the workstation bounds?</summary>
+        public bool IsOutOfBounds(Vector3 position, out bool belowFloor)
+        {
+            belowFloor = m_Pad != null && position.y < m_Pad.position.y + m_FloorOffset;
+            if (belowFloor) return true;
+            return m_Bounds != null && !m_Bounds.bounds.Contains(position);
         }
 
         void Update()
@@ -59,6 +83,7 @@ namespace VRRocket
             {
                 var part = m_Parts[i];
                 if (part == null || part.state != PartState.Free) continue;
+                if (!m_OutsideTimers.ContainsKey(part)) m_OutsideTimers[part] = 0f;
                 var grab = part.grabInteractable;
                 if (grab != null && grab.isSelected) { m_OutsideTimers[part] = 0f; continue; }
                 var pos = part.transform.position;

@@ -6,19 +6,26 @@ using UnityEngine.XR.Interaction.Toolkit.Interactors;
 namespace VRRocket
 {
     /// <summary>
-    /// Identity and state of one rocket part (SPEC.md section 10.2).
+    /// Identity and state of one rocket part (SPEC.md section 10.2), including the body tube.
     /// The guided attach mechanic lives in <see cref="GuideGrabTransformer"/>; this component records what the part is, where it stands,
-    /// which hand held it last (for haptics) and where it lives when loose (for detaching).
+    /// which hand held it last (for haptics), where it lives when loose, and drives the optional part-side glow (section 6, "should").
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class RocketPart : MonoBehaviour
     {
+        static readonly int k_BaseColorId = Shader.PropertyToID("_BaseColor");
+
         [SerializeField] PartType m_PartType = PartType.TailFin;
         [SerializeField, Tooltip("1 to 3 for fins and flaps, 1 for the rest.")] int m_PartId = 1;
+        [SerializeField, Tooltip("Optional emissive mesh on the part's attach feature (tab, shoulder, nozzle, lugs).")] Renderer m_GlowRenderer;
+        [SerializeField, ColorUsage(false, true)] Color m_GlowColor = new Color(1f, 0.55f, 0.1f) * 2f;
 
         XRGrabInteractable m_Grab;
         Rigidbody m_Rigidbody;
         bool m_HookedGrab;
+        MaterialPropertyBlock m_Block;
+        float m_GlowRequest;
+        float m_GlowShown = -1f;
 
         public PartType partType => m_PartType;
         public int partId => m_PartId;
@@ -34,6 +41,7 @@ namespace VRRocket
         public XRGrabInteractable grabInteractable => m_Grab != null ? m_Grab : (m_Grab = GetComponent<XRGrabInteractable>());
         public Rigidbody body => m_Rigidbody != null ? m_Rigidbody : (m_Rigidbody = GetComponent<Rigidbody>());
         public bool isHeld => grabInteractable != null && grabInteractable.isSelected;
+        public Renderer glowRenderer => m_GlowRenderer;
 
         /// <summary>Id used in reports, for example "WingFlap_2".</summary>
         public string displayId => m_PartType + "_" + m_PartId;
@@ -42,6 +50,17 @@ namespace VRRocket
         {
             m_PartType = type;
             m_PartId = id;
+        }
+
+        public void SetGlowRenderer(Renderer renderer)
+        {
+            m_GlowRenderer = renderer;
+        }
+
+        /// <summary>Overrides the tray group this part returns to when detached (used after a new build is spawned).</summary>
+        public void SetHomeParent(Transform parent)
+        {
+            homeParent = parent;
         }
 
         void Awake()
@@ -57,6 +76,11 @@ namespace VRRocket
             m_HookedGrab = true;
         }
 
+        void OnEnable()
+        {
+            ApplyGlow(0f);
+        }
+
         void OnDestroy()
         {
             if (m_HookedGrab && m_Grab != null) m_Grab.selectEntered.RemoveListener(OnSelectEntered);
@@ -65,6 +89,31 @@ namespace VRRocket
         void OnSelectEntered(SelectEnterEventArgs args)
         {
             lastHoldingInteractor = args.interactorObject;
+        }
+
+        /// <summary>Ask for part-side glow this frame; the brightest request wins and it resets every frame.</summary>
+        public void RequestGlow(float amount)
+        {
+            if (amount > m_GlowRequest) m_GlowRequest = amount;
+        }
+
+        void LateUpdate()
+        {
+            ApplyGlow(m_GlowRequest);
+            m_GlowRequest = 0f;
+        }
+
+        void ApplyGlow(float amount)
+        {
+            if (m_GlowRenderer == null || Mathf.Approximately(amount, m_GlowShown)) return;
+            m_GlowShown = amount;
+            var on = amount > 0.001f;
+            m_GlowRenderer.enabled = on;
+            if (!on) return;
+            if (m_Block == null) m_Block = new MaterialPropertyBlock();
+            m_GlowRenderer.GetPropertyBlock(m_Block);
+            m_Block.SetColor(k_BaseColorId, m_GlowColor * (0.25f + 0.75f * amount));
+            m_GlowRenderer.SetPropertyBlock(m_Block);
         }
 
         internal void SetGuided()

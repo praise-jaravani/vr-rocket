@@ -47,7 +47,7 @@ namespace VRRocket.Tests
             yield return MoveHand(seatPos + new Vector3(0.01f, d1, 0f) + grabOffset);
             Assert.IsTrue(guide.isGuided, "guide engages inside captureRadius");
             Assert.AreEqual(PartState.Guided, nose.state);
-            CollectionAssert.Contains(events, "engaged:NoseSeat");
+            CollectionAssert.Contains(events, "engaged:NoseCone_1@NoseSeat");
             Assert.Less(Mathf.Abs(Rel().x) + Mathf.Abs(Rel().z), 1e-3f, "on the axis");
             Assert.AreEqual(d1 * Fraction(d1), Rel().y, 2e-3f, "displayed depth follows the faded magnetism");
             Assert.Less(Vector3.Angle(nose.transform.up, seat.transform.up), 0.5f, "rotation locked upright");
@@ -69,7 +69,7 @@ namespace VRRocket.Tests
             yield return MoveHand(seatPos + new Vector3(breakR * 1.5f, 0.02f, 0f) + grabOffset);
             Assert.IsFalse(guide.isGuided, "guide lets go beyond breakRadius");
             Assert.AreEqual(PartState.Free, nose.state);
-            CollectionAssert.Contains(events, "released:NoseSeat");
+            CollectionAssert.Contains(events, "released:NoseCone_1@NoseSeat");
             Assert.Less(Vector3.Distance(nose.transform.position, controller.position - grabOffset), 0.01f, "follows the hand again");
 
             // Re-capture and release: seats
@@ -84,7 +84,7 @@ namespace VRRocket.Tests
             Assert.Less(nose.transform.localPosition.magnitude, 1e-4f, "flush on the seat");
             Assert.IsTrue(nose.body.isKinematic);
             Assert.IsFalse(seat.glowRenderer.enabled, "glow off once seated");
-            CollectionAssert.Contains(events, "seated:NoseSeat");
+            CollectionAssert.Contains(events, "seated:NoseCone_1@NoseSeat");
             var tubeCollider = workstation.stand.tube.GetComponent<Collider>();
             Assert.IsTrue(Physics.GetIgnoreCollision(nose.GetComponent<Collider>(), tubeCollider), "attached part ignores the rocket");
             var feedback = workstation.GetComponent<AssemblyFeedback>();
@@ -105,7 +105,7 @@ namespace VRRocket.Tests
             Assert.IsFalse(guide.isGuided, "pulled past guideLength detaches");
             Assert.AreEqual(PartState.Free, nose.state);
             Assert.IsFalse(seat.isOccupied);
-            CollectionAssert.Contains(events, "removed:NoseSeat");
+            CollectionAssert.Contains(events, "removed:NoseCone_1@NoseSeat");
             Assert.IsFalse(Physics.GetIgnoreCollision(nose.GetComponent<Collider>(), tubeCollider), "loose part collides with the rocket again");
 
             // Drop it: dynamic again, back in its tray group, and it falls

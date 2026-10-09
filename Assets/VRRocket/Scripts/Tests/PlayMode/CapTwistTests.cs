@@ -20,10 +20,13 @@ namespace VRRocket.Tests
 
         IEnumerator SeatCap()
         {
+            // SPEC 5.5: the cap always needs the motor, even with the order gating off, so seat the motor on the bare tube first.
+            assembly.enforceOrder = false;
+            yield return SeatPart(Part(PartType.Motor), Point("MotorSeat"), Quaternion.identity);
             m_Cap = Part(PartType.MotorCap);
             m_Twist = m_Cap.GetComponent<MotorCapTwist>();
             m_Seat = Point("CapSeat");
-            yield return SeatPart(m_Cap, m_Seat);
+            yield return SeatPart(m_Cap, m_Seat, Quaternion.identity);
         }
 
         float Gap() => Vector3.Dot(m_Cap.transform.position - m_Seat.transform.position, m_Seat.GuideAxisWorld);
@@ -98,7 +101,7 @@ namespace VRRocket.Tests
             Assert.AreEqual(1, Count("locked"));
             yield return MoveHand(Orbit(-200f) + m_Seat.GuideAxisWorld * (tuning.capPullOff * 2f));
             Assert.AreEqual(PartState.Attached, m_Cap.state, "a locked cap cannot be pulled off");
-            Assert.AreEqual(0, Count("removed:CapSeat"));
+            Assert.AreEqual(0, Count("removed:MotorCap_1@CapSeat"));
 
             Release(m_Cap);
             yield return new WaitForSeconds(0.3f);
@@ -138,7 +141,7 @@ namespace VRRocket.Tests
             yield return MoveHand(Orbit(-35f) + m_Seat.GuideAxisWorld * (tuning.capPullOff * 1.5f));
             Assert.AreEqual(PartState.Free, m_Cap.state, "unlocked cap pulls off");
             Assert.IsFalse(m_Seat.isOccupied);
-            Assert.AreEqual(1, Count("removed:CapSeat"));
+            Assert.AreEqual(1, Count("removed:MotorCap_1@CapSeat"));
             Assert.AreEqual(0f, m_Twist.progressDegrees, 1e-3f, "progress resets to zero");
             // The dynamic attach snapped to the cap's collider surface (lugs top), so the hand-to-origin offset is not exactly grabOffset.
             Assert.Less(Vector3.Distance(m_Cap.transform.position, controller.position), 0.05f, "follows the hand");
@@ -148,7 +151,7 @@ namespace VRRocket.Tests
             Assert.AreSame(m_Cap.homeParent, m_Cap.transform.parent);
 
             // Re-seat: starts again from zero with the gap
-            yield return SeatPart(m_Cap, m_Seat);
+            yield return SeatPart(m_Cap, m_Seat, Quaternion.identity);
             Assert.AreEqual(gap, Gap(), 5e-4f);
             Assert.AreEqual(0f, m_Twist.progressDegrees, 1e-3f);
             Assert.IsFalse(m_Twist.capLocked);

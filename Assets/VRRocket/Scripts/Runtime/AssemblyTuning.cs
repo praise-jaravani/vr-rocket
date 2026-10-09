@@ -20,6 +20,8 @@ namespace VRRocket
         public float guideLengthNose = 0.06f;
         public float guideLengthMotor = 0.08f;
         public float guideLengthCap = 0.04f;
+        [Tooltip("How far the finished rocket is lifted before it leaves the stand's clamp.")]
+        public float guideLengthTube = 0.10f;
 
         [Header("Orientation tolerance (degrees)")]
         public float orientationTolerancePlates = 40f;
@@ -57,6 +59,7 @@ namespace VRRocket
                 case PartType.NoseCone: return guideLengthNose;
                 case PartType.Motor: return guideLengthMotor;
                 case PartType.MotorCap: return guideLengthCap;
+                case PartType.BodyTube: return guideLengthTube;
                 default: return guideLengthPlates;
             }
         }

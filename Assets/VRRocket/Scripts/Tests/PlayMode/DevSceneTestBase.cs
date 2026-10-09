@@ -20,6 +20,7 @@ namespace VRRocket.Tests
         const string k_Scene = "Assets/VRRocket/Scenes/Dev_Interactions.unity";
 
         protected RocketWorkstation workstation;
+        protected RocketAssembly assembly;
         protected XRInteractionManager manager;
         protected NearFarInteractor hand;
         protected Transform controller;
@@ -28,6 +29,9 @@ namespace VRRocket.Tests
 
         /// <summary>The hand holds a part this far above its origin, so hand = target pose + grabOffset.</summary>
         protected static readonly Vector3 grabOffset = Vector3.up * 0.03f;
+
+        Vector3 m_GrabLocalPos;
+        Quaternion m_GrabLocalRot = Quaternion.identity;
 
         [UnitySetUp]
         public IEnumerator SetUpScene()
@@ -38,9 +42,8 @@ namespace VRRocket.Tests
             yield return UnityEditor.SceneManagement.EditorSceneManager.LoadSceneAsyncInPlayMode(k_Scene, new LoadSceneParameters(LoadSceneMode.Single));
             yield return null;
             workstation = Object.FindFirstObjectByType<RocketWorkstation>();
+            assembly = Object.FindFirstObjectByType<RocketAssembly>();
             manager = Object.FindFirstObjectByType<XRInteractionManager>();
-            // The rig's XRInputModalityManager keeps the controller objects inactive until a controller is tracked.
-            // Give the simulator a moment, then take the right controller regardless and stop the manager toggling it.
             for (var frame = 0; frame < 120 && hand == null; frame++)
             {
                 foreach (var nf in Object.FindObjectsByType<NearFarInteractor>(FindObjectsInactive.Include, FindObjectsSortMode.None))
@@ -61,6 +64,13 @@ namespace VRRocket.Tests
             controller = hand.transform.parent;
             if (!controller.gameObject.activeSelf) controller.gameObject.SetActive(true);
             foreach (var tpd in controller.GetComponents<TrackedPoseDriver>()) tpd.enabled = false;
+            // The attach controller smooths and velocity-scales the anchor behind a real hand; tests teleport the hand,
+            // so make the anchor follow it rigidly.
+            foreach (var iac in hand.GetComponents<UnityEngine.XR.Interaction.Toolkit.Attachment.InteractionAttachController>())
+            {
+                iac.smoothOffset = false;
+                iac.useDistanceBasedVelocityScaling = false;
+            }
             yield return null;
             LogAssert.ignoreFailingMessages = false;
             // park the hand away from the tray so its pusher body cannot sweep parts off the desk
@@ -74,6 +84,7 @@ namespace VRRocket.Tests
             AssemblyEvents.PartRemoved += OnRemoved;
             AssemblyEvents.CapDetent += OnCapDetent;
             AssemblyEvents.CapLocked += OnCapLocked;
+            AssemblyEvents.PrototypeComplete += OnPrototypeComplete;
             yield return new WaitForSeconds(0.5f);
         }
 
@@ -86,15 +97,17 @@ namespace VRRocket.Tests
             AssemblyEvents.PartRemoved -= OnRemoved;
             AssemblyEvents.CapDetent -= OnCapDetent;
             AssemblyEvents.CapLocked -= OnCapLocked;
+            AssemblyEvents.PrototypeComplete -= OnPrototypeComplete;
             yield return null;
         }
 
-        void OnEngaged(RocketPart p, AttachPoint a) => events.Add("engaged:" + a.pointName);
-        void OnReleased(RocketPart p, AttachPoint a) => events.Add("released:" + a.pointName);
-        void OnSeated(RocketPart p, AttachPoint a) => events.Add("seated:" + a.pointName);
-        void OnRemoved(RocketPart p, AttachPoint a) => events.Add("removed:" + a.pointName);
+        void OnEngaged(RocketPart p, AttachPoint a) => events.Add("engaged:" + p.name + "@" + a.pointName);
+        void OnReleased(RocketPart p, AttachPoint a) => events.Add("released:" + p.name + "@" + a.pointName);
+        void OnSeated(RocketPart p, AttachPoint a) => events.Add("seated:" + p.name + "@" + a.pointName);
+        void OnRemoved(RocketPart p, AttachPoint a) => events.Add("removed:" + p.name + "@" + a.pointName);
         void OnCapDetent(RocketPart p) => events.Add("detent");
         void OnCapLocked(RocketPart p) => events.Add("locked");
+        void OnPrototypeComplete(RocketPart p) => events.Add("prototypeComplete");
 
         protected int Count(string e)
         {
@@ -103,15 +116,25 @@ namespace VRRocket.Tests
             return n;
         }
 
+        protected int CountPrefix(string prefix)
+        {
+            var n = 0;
+            foreach (var x in events) if (x.StartsWith(prefix)) n++;
+            return n;
+        }
+
         protected RocketPart Part(PartType type, int id = 1)
         {
-            foreach (var p in workstation.respawner.parts) if (p.partType == type && p.partId == id) return p;
+            foreach (var p in workstation.respawner.parts) if (p != null && p.partType == type && p.partId == id) return p;
             throw new AssertionException("no part " + type + "_" + id);
         }
 
+        protected RocketPart Tube => assembly != null && assembly.tube != null ? assembly.tube : workstation.stand.tube;
+
         protected AttachPoint Point(string name)
         {
-            return workstation.stand.tube.transform.Find("AttachPoints/" + name).GetComponent<AttachPoint>();
+            if (name == "StandClamp") return workstation.stand.clamp;
+            return Tube.transform.Find("AttachPoints/" + name).GetComponent<AttachPoint>();
         }
 
         protected IEnumerator MoveHand(Vector3 worldPos)
@@ -121,39 +144,114 @@ namespace VRRocket.Tests
             yield return new WaitForSeconds(0.25f);
         }
 
-        protected IEnumerator MoveHand(Vector3 worldPos, Quaternion worldRot)
-        {
-            controller.rotation = worldRot;
-            yield return MoveHand(worldPos);
-        }
-
-        /// <summary>Grabs the part from grabOffset above its origin.</summary>
+        /// <summary>Grabs the part from grabOffset above its origin and remembers the hand-to-part relation.</summary>
         protected IEnumerator Grab(RocketPart part)
         {
+            controller.rotation = Quaternion.identity;
             yield return MoveHand(part.transform.position + grabOffset);
-            Assert.IsTrue(manager.IsSelectPossible(hand, part.grabInteractable), "near grab of " + part.name + " must be possible");
+            if (!manager.IsSelectPossible(hand, part.grabInteractable) && part.state == PartState.Free)
+            {
+                // a loose part knocked somewhere awkward by physics: put it back on the pad at rest and try again
+                workstation.respawner.Respawn(part);
+                yield return new WaitForSeconds(0.3f);
+                yield return MoveHand(part.transform.position + grabOffset);
+            }
+            Assert.IsTrue(manager.IsSelectPossible(hand, part.grabInteractable), "near grab of " + part.name + " must be possible (state " + part.state + ", pos " + part.transform.position.ToString("F2") + ")");
             manager.SelectEnter((IXRSelectInteractor)hand, part.grabInteractable);
             Assert.IsTrue(part.grabInteractable.isSelected, part.name + " selected");
-            yield return new WaitForSeconds(0.25f);
+            yield return null;
+            m_Held = part;
+            var inv = Quaternion.Inverse(part.transform.rotation);
+            m_GrabLocalPos = inv * (controller.position - part.transform.position);
+            m_GrabLocalRot = inv * controller.rotation;
+            yield return new WaitForSeconds(0.2f);
         }
+
+        /// <summary>Can the right hand grab this part from right next to it?</summary>
+        protected IEnumerator CanGrabFromNear(RocketPart part, System.Action<bool> result)
+        {
+            controller.rotation = Quaternion.identity;
+            yield return MoveHand(part.transform.position + grabOffset);
+            result(manager.IsSelectPossible(hand, part.grabInteractable));
+        }
+
+        /// <summary>Moves the hand so that the held part would take exactly this pose (rigid dynamic attach).</summary>
+        RocketPart m_Held;
+
+        /// <summary>Moves the hand so that the held part takes this pose. Verifies the result and re-derives the hand relation if XRI's attach anchor drifted.</summary>
+        protected IEnumerator PlaceHeld(Vector3 partPos, Quaternion partRot)
+        {
+            for (var attempt = 0; attempt < 3; attempt++)
+            {
+                controller.rotation = partRot * m_GrabLocalRot;
+                controller.position = partPos + partRot * m_GrabLocalPos;
+                Physics.SyncTransforms();
+                yield return new WaitForSeconds(0.4f);
+                if (m_Held == null || m_Held.state != PartState.Free) yield break;   // guided or attached: the mechanic owns the pose now
+                var posErr = Vector3.Distance(m_Held.transform.position, partPos);
+                var rotErr = Quaternion.Angle(m_Held.transform.rotation, partRot);
+                if (posErr < 0.01f && rotErr < 3f) yield break;
+                // re-derive the relation from where the part really is
+                var inv = Quaternion.Inverse(m_Held.transform.rotation);
+                m_GrabLocalPos = inv * (controller.position - m_Held.transform.position);
+                m_GrabLocalRot = inv * controller.rotation;
+                lastPlaceError = "pos " + posErr.ToString("F3") + " rot " + rotErr.ToString("F1");
+            }
+        }
+
+        protected string lastPlaceError = "";
 
         protected void Release(RocketPart part)
         {
             manager.SelectExit((IXRSelectInteractor)hand, part.grabInteractable);
         }
 
-        /// <summary>Guides a part onto a seat along the point's axis and releases it. Expects it to seat.</summary>
-        protected IEnumerator SeatPart(RocketPart part, AttachPoint point)
+        /// <summary>The upright pose a part takes when guided into a point: slots use the point's rotation, seats keep the part upright.</summary>
+        protected static Quaternion SeatPoseRotation(AttachPoint point) => point.isSlot ? point.transform.rotation : point.transform.rotation;
+
+        /// <summary>Guides a part onto a point along its axis, holding it with the given rotation, and releases it. Expects it to seat.</summary>
+        protected IEnumerator SeatPart(RocketPart part, AttachPoint point, Quaternion? heldRotation = null)
         {
             yield return Grab(part);
+            var rot = heldRotation ?? SeatPoseRotation(point);
             var away = point.GuideAxisWorld;
-            yield return MoveHand(point.transform.position + away * (tuning.captureRadius * 0.6f) + grabOffset);
             var guide = part.GetComponent<GuideGrabTransformer>();
-            Assert.IsTrue(guide.isGuided, part.name + " guided at " + point.pointName);
+            for (var attempt = 0; attempt < 3 && !guide.isGuided; attempt++)
+                yield return PlaceHeld(point.transform.position + away * (tuning.captureRadius * 0.6f), rot);
+            var dist = Vector3.Distance(part.transform.position, point.transform.position);
+            var ang = Vector3.Angle(point.isSlot ? part.transform.forward : part.transform.up, point.ReferenceAxisWorld);
+            Assert.IsTrue(guide.isGuided, part.name + " guided at " + point.pointName + " (gating " + point.gatingAllows + ", occupied " + point.isOccupied + ", dist " + dist.ToString("F3") + ", angle " + ang.ToString("F1") + ", held " + part.isHeld + ", state " + part.state + ", last place error " + lastPlaceError + ")");
             Release(part);
             yield return new WaitForSeconds(tuning.SeatDurationFor(part.partType) + 0.3f);
             Assert.AreEqual(PartState.Attached, part.state, part.name + " attached");
             Assert.AreSame(point, part.attachedTo);
+        }
+
+        /// <summary>Grabs an attached part and pulls it out along the point's axis past the guide length, then drops it.</summary>
+        protected IEnumerator RemovePart(RocketPart part)
+        {
+            var point = part.attachedTo;
+            Assert.IsNotNull(point, part.name + " is attached");
+            yield return Grab(part);
+            var away = point.GuideAxisWorld;
+            var len = tuning.GuideLengthFor(part.partType);
+            for (var attempt = 0; attempt < 3 && part.state != PartState.Free; attempt++)
+                yield return PlaceHeld(point.transform.position + away * (len * (1.6f + 0.4f * attempt)), part.transform.rotation);
+            Assert.AreEqual(PartState.Free, part.state, part.name + " detached");
+            Release(part);
+            yield return new WaitForSeconds(0.3f);
+        }
+
+        /// <summary>Builds the complete airframe: three fins, three flaps (Mid, Up), nose cone.</summary>
+        protected IEnumerator BuildAirframe()
+        {
+            yield return SeatPart(Part(PartType.TailFin, 1), Point("FinSlot_1"));
+            yield return SeatPart(Part(PartType.TailFin, 2), Point("FinSlot_2"));
+            yield return SeatPart(Part(PartType.TailFin, 3), Point("FinSlot_3"));
+            yield return SeatPart(Part(PartType.WingFlap, 1), Point("FlapSlot_Mid_1"));
+            yield return SeatPart(Part(PartType.WingFlap, 2), Point("FlapSlot_Mid_2"));
+            yield return SeatPart(Part(PartType.WingFlap, 3), Point("FlapSlot_Mid_3"));
+            yield return SeatPart(Part(PartType.NoseCone), Point("NoseSeat"), Quaternion.identity);
         }
     }
 }

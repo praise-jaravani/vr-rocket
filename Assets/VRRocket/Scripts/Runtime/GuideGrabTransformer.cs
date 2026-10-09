@@ -229,6 +229,8 @@ namespace VRRocket
                     if (!p.Accepts(m_Part)) continue;
                     var d = Vector3.Distance(targetPose.position, p.transform.position);
                     if (d >= glowR) continue;
+                    // The motor presented nozzle-up is rejected completely: no glow, no snap (SPEC 5.3).
+                    if (m_Part.partType == PartType.Motor && !OrientationOk(p, targetPose.rotation, t)) continue;
                     p.RequestGlow(1f - d / glowR);
                     if (d < bestDist)
                     {
@@ -236,6 +238,7 @@ namespace VRRocket
                         best = p;
                     }
                 }
+                if (best != null) m_Part.RequestGlow(1f - bestDist / glowR);
                 if (best != null && bestDist <= captureR && OrientationOk(best, targetPose.rotation, t))
                     Engage(best, targetPose.rotation);
             }
@@ -273,6 +276,7 @@ namespace VRRocket
                 targetPose.position = GuideMath.GuidedPosition(seat, axis, depth, guideLength, fraction);
                 targetPose.rotation = m_SeatedRotation;
                 m_Point.RequestGlow(1f);
+                m_Part.RequestGlow(1f);
             }
 
             ApplyBlend(ref targetPose, t);

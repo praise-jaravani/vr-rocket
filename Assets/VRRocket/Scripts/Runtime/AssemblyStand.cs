@@ -3,37 +3,37 @@ using UnityEngine;
 namespace VRRocket
 {
     /// <summary>
-    /// Holds the body tube upright during assembly (SPEC.md section 8.2). M1 scope: clamp the tube so it cannot be grabbed.
-    /// Release, whole-rocket carry and re-capture arrive in M7.
+    /// Holds the body tube upright during assembly (SPEC.md section 8.2). The clamp is an <see cref="AttachPoint"/> that accepts the
+    /// tube, so the tube uses the same guided mechanic as every part: the stand releases it at PrototypeComplete (gating), lifting
+    /// it past the guide length takes it out, and bringing it back within the capture radius snaps it back in.
     /// </summary>
     public sealed class AssemblyStand : MonoBehaviour
     {
-        [SerializeField, Tooltip("Where the tube's origin (centre of the bottom rim) sits while clamped.")] Transform m_TubeAnchor;
+        [SerializeField, Tooltip("The clamp attach point. The tube's origin (centre of the bottom rim) sits here while clamped.")] AttachPoint m_Clamp;
         [SerializeField] RocketPart m_Tube;
 
-        public Transform tubeAnchor => m_TubeAnchor;
+        public AttachPoint clamp => m_Clamp;
+        public Transform tubeAnchor => m_Clamp != null ? m_Clamp.transform : null;
         public RocketPart tube => m_Tube;
-        public bool isHolding { get; private set; }
+        public bool isHolding => m_Clamp != null && m_Clamp.isOccupied;
 
-        public void Configure(Transform tubeAnchor, RocketPart tube)
+        public void Configure(AttachPoint clamp, RocketPart tube)
         {
-            m_TubeAnchor = tubeAnchor;
+            m_Clamp = clamp;
             m_Tube = tube;
         }
 
         void Start()
         {
-            if (m_Tube != null) Hold(m_Tube);
+            if (m_Tube != null && !isHolding) Hold(m_Tube);
         }
 
-        /// <summary>Clamps the tube at the anchor. It becomes kinematic and, if it has a grab interactable, ungrabbable.</summary>
+        /// <summary>Clamps the tube at once: kinematic, parented to the clamp, attached to it.</summary>
         public void Hold(RocketPart tube)
         {
+            if (m_Clamp == null || tube == null) return;
+            if (m_Clamp.isOccupied && m_Clamp.attachedPart != tube) m_Clamp.ClearAttached();
             m_Tube = tube;
-            var t = tube.transform;
-            t.SetParent(m_TubeAnchor, false);
-            t.localPosition = Vector3.zero;
-            t.localRotation = Quaternion.identity;
             var body = tube.body;
             if (body != null)
             {
@@ -44,9 +44,12 @@ namespace VRRocket
                 }
                 body.isKinematic = true;
             }
-            var grab = tube.grabInteractable;
-            if (grab != null) grab.enabled = false;
-            isHolding = true;
+            var t = tube.transform;
+            t.SetParent(m_Clamp.transform, false);
+            t.localPosition = Vector3.zero;
+            t.localRotation = Quaternion.identity;
+            m_Clamp.SetAttached(tube);
+            tube.SetAttached(m_Clamp);
         }
     }
 }

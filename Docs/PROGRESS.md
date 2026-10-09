@@ -131,3 +131,43 @@ Separate from the rocket milestones. Rocket prefabs and scripts untouched; `Dev_
 - Headset frame rate not measured here; that is Praise's check on the Quest.
 
 **Known rough edges for v1.1**: the CRT's screen face orientation has not been confirmed in a close-up; the puzzle panel and side screens are flat placeholders; the roller door and rack are a little rusty for the palette; the bin has no lid or animation (M7 and the teammates own that).
+
+## 2026-10-09: M4 to M9, all remaining interactions (done)
+
+All milestones of SPEC 11 are now implemented. Automated results: 27/27 edit-mode, 11/11 play-mode (116 s), console clean of VRRocket errors.
+
+### M4 Fins
+- `GuideGrabTransformer` on the TailFin prefab; the slot axis is the point's local +Z, roll is corrected to the slot on seating (`GuideMath.SeatedRotation`), any slot in any order. Emissive frame meshes (`GlowFrame_Fin`) on the three fin slots.
+- Play test `Fins_AnyOrder_RollCorrected_Removable`: fin 1 held rolled 150 degrees seats in slot 3 with the slot's rotation to under 1 degree, fins 2 and 3 fill slots 1 and 2, an occupied slot accepts nothing, a fin pulls back out and the count drops.
+
+### M5 Flaps
+- All six flap slots accept any flap, either way up; the held orientation is kept (`SeatedRotation` picks the flipped rotation when closer). `RocketAssembly` records slot name, Base/Midpoint and Up/Down at seating; `GetReport()` reads them.
+- Play test `Flaps_SixSlots_EitherWayUp_PlacementsRecorded_FeedbackIdentical`: Low_2 up reports Base/Up, Mid_1 upside down reports Midpoint/Down, Mid_3 reports Midpoint/Up; failedComponents lists the two wrong flaps; every placement raised exactly one engage and one seat event, wrong or right; removing a flap clears its record.
+
+### M6 Motor and gating
+- Motor: the reversed (nozzle-up) motor gets no glow and never engages (orientation now gates the glow for the motor only); nozzle-down engages and travels into the mount by itself over seatDurationMotor (0.30 s).
+- `AssemblyStateMachine` (plain C#) implements 5.5: forward path, backward moves on removal, removal exceptions (airframe locked once the motor is seated, motor locked while the cap is seated), gating on and off (`enforceOrder` from the tuning asset, settable at runtime). `RocketAssembly` pushes gating into every attach point; `AssemblyGrabGate` on every part refuses grabs the rules forbid, so the hand falls through to whatever else it touches.
+- Edit tests `AssemblyStateMachineTests` (7) cover 12.1's state machine and gating rows. Play tests: `Motor_RefusedBeforeAirframe_RefusedNozzleUp_SeatsNozzleDown_ThenCapGating` and `Cap_RefusedBeforeMotor_AndEnforceOrderOff_MotorAcceptedEarly`.
+
+### M7 Completion and handover
+- The stand's clamp is an `AttachPoint` accepting the tube, so lifting out, carrying and re-seating reuse the guide. At PrototypeComplete the stand releases (event, stand-release sound, both-hand haptic); the tube becomes grabbable near-only; attached parts cannot come off out of the stand except the cap twist; a dropped rocket returns to the stand.
+- `RocketAssembly` implements the 8.4 interface: `State`, `StateChanged`, `PartAttached`, `PartRemoved`, `Submitted` (C# events and UnityEvents), `GetReport()`, `TrySubmit()`, `ReturnPrototype(mode, at)`, `BeginNewBuild()`. `RocketWorkstation` spawns a fresh kit from the part prefabs at the original tray layout.
+- Stubs (8.5) in `Prefabs/Stubs/MissionControlStubs.prefab`, placed in both scenes: `SubmissionZoneStub` (trigger box plus Submit button), `OutcomeReadoutStub` (report panel plus Failed-launch and Abort buttons). XRI push button `onPress` wired as persistent UnityEvents, no code reference to the example assembly.
+- Play tests: `StandRelease_Carry_Submit_FailedLaunch_NewBuild` (tube ungrabbable until complete, release fires once, lift out, parts stay on and cannot be pulled off while carried, cap still grippable, release in the zone, submit yields MotorRetentionLoss with the cap listed, frozen, taken away, inspect-only return that can be picked up but not altered, fresh kit of nine parts and a new tube in the stand, old points dead), `Submit_Abort_ReturnsEditableToStand`, `DroppedRocket_ReturnsToStand`.
+- Bug found by the suite and fixed: the stub's take-away coroutine hid the rocket after an abort had already returned it. It now checks the state first.
+
+### M8 Polish (partial)
+- `ImpactAudio` on every part: dull desk impact or sharp part-on-part impact, volume by relative speed, cooldown per part.
+- Part-side glow: each part has an emissive mesh on its attach feature (tab frame, shoulder ring, nozzle ring, lug ring) that lights with the nearest accepting point.
+- Not done here: the tuning pass and the Quest frame-rate check, both headset work.
+
+### M9 Integration notes
+- `Docs/INTEGRATION.md` written for the teammates: drop-in, interface, flow, stubs to delete.
+
+### Not verified in the headset (SPEC 12.2, all of it is Praise's)
+Items 1 to 14. In particular: the twist direction, whether a 40 degree slot tolerance feels right, whether the fin and flap frames read on Quest, the stand release vibration on both hands, carrying the rocket between desks, the inspect-only prototype feel, and frame rate with the glow meshes.
+
+### Notes
+- Test harness: the hand's attach controller smoothing is disabled in tests and the placement helper verifies and re-derives the hand relation, because teleporting a controller through XRI's anchor smoothing is not what a real hand does.
+- XRI logs "Retain Transform Parent ... old parent is deactivated" on two test pull-offs; harmless, the transformer re-parents loose parts itself.
+- In Env_ControlRoom the stub Submit, Failed-launch and Abort buttons sit on the console top next to the real-looking panel buttons; the panel buttons are not wired. Delete the stubs when the real systems arrive.
