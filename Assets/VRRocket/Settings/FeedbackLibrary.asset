@@ -27,24 +27,150 @@ MonoBehaviour:
   hapticGuideEngage:
     amplitude: 0.15
     duration: 0.02
+    frequency: 220
+    secondAmplitude: 0
+    secondDuration: 0
+    secondGap: 0
   hapticSeat:
     amplitude: 0.5
     duration: 0.08
+    frequency: 120
+    secondAmplitude: 0.15
+    secondDuration: 0.05
+    secondGap: 0.03
   hapticNoseSeat:
     amplitude: 0.4
     duration: 0.08
+    frequency: 100
+    secondAmplitude: 0
+    secondDuration: 0
+    secondGap: 0
   hapticCapSeatUnlocked:
     amplitude: 0.2
     duration: 0.04
+    frequency: 100
+    secondAmplitude: 0
+    secondDuration: 0
+    secondGap: 0
   hapticCapDetent:
     amplitude: 0.2
     duration: 0.02
+    frequency: 250
+    secondAmplitude: 0
+    secondDuration: 0
+    secondGap: 0
   hapticCapLock:
     amplitude: 1
     duration: 0.2
+    frequency: 80
+    secondAmplitude: 0.3
+    secondDuration: 0.1
+    secondGap: 0.05
   hapticPartRemoved:
     amplitude: 0.2
     duration: 0.04
+    frequency: 150
+    secondAmplitude: 0
+    secondDuration: 0
+    secondGap: 0
   hapticPrototypeComplete:
     amplitude: 0.3
     duration: 0.1
+    frequency: 90
+    secondAmplitude: 0.2
+    secondDuration: 0.06
+    secondGap: 0.08
+  hapticHoverPart:
+    amplitude: 0.08
+    duration: 0.012
+    frequency: 250
+    secondAmplitude: 0
+    secondDuration: 0
+    secondGap: 0
+  hapticGrabPart:
+    amplitude: 0.3
+    duration: 0.03
+    frequency: 160
+    secondAmplitude: 0
+    secondDuration: 0
+    secondGap: 0
+  hapticGrabRocket:
+    amplitude: 0.55
+    duration: 0.05
+    frequency: 90
+    secondAmplitude: 0.2
+    secondDuration: 0.08
+    secondGap: 0.04
+  hapticReleasePart:
+    amplitude: 0.12
+    duration: 0.015
+    frequency: 180
+    secondAmplitude: 0
+    secondDuration: 0
+    secondGap: 0
+  hapticReleaseRocket:
+    amplitude: 0.25
+    duration: 0.03
+    frequency: 110
+    secondAmplitude: 0
+    secondDuration: 0
+    secondGap: 0
+  hapticSlideTick:
+    amplitude: 0.07
+    duration: 0.01
+    frequency: 220
+    secondAmplitude: 0
+    secondDuration: 0
+    secondGap: 0
+  hapticTwistTexture:
+    amplitude: 0.08
+    duration: 0.012
+    frequency: 200
+    secondAmplitude: 0
+    secondDuration: 0
+    secondGap: 0
+  hapticStandLiftOut:
+    amplitude: 0.35
+    duration: 0.05
+    frequency: 120
+    secondAmplitude: 0.15
+    secondDuration: 0.06
+    secondGap: 0.03
+  hapticStandCapture:
+    amplitude: 0.6
+    duration: 0.1
+    frequency: 80
+    secondAmplitude: 0.2
+    secondDuration: 0.06
+    secondGap: 0.04
+  hapticSubmitAccepted:
+    amplitude: 0.5
+    duration: 0.12
+    frequency: 100
+    secondAmplitude: 0.3
+    secondDuration: 0.15
+    secondGap: 0.1
+  hapticKitSpawned:
+    amplitude: 0.15
+    duration: 0.04
+    frequency: 200
+    secondAmplitude: 0
+    secondDuration: 0
+    secondGap: 0
+  hapticButtonPress:
+    amplitude: 0.6
+    duration: 0.03
+    frequency: 200
+    secondAmplitude: 0
+    secondDuration: 0
+    secondGap: 0
+  hapticButtonRelease:
+    amplitude: 0.25
+    duration: 0.02
+    frequency: 180
+    secondAmplitude: 0
+    secondDuration: 0
+    secondGap: 0
+  hapticSlideTickDistance: 0.004
+  hapticTwistTextureAngle: 6
+  hapticHoverCooldown: 0.25

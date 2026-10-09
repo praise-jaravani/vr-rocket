@@ -69,10 +69,14 @@ namespace VRRocket
             HookGrab();
         }
 
+        float m_LastHoverTick = -10f;
+
         void HookGrab()
         {
             if (m_HookedGrab || grabInteractable == null) return;
             grabInteractable.selectEntered.AddListener(OnSelectEntered);
+            grabInteractable.selectExited.AddListener(OnSelectExited);
+            grabInteractable.hoverEntered.AddListener(OnHoverEntered);
             m_HookedGrab = true;
         }
 
@@ -83,12 +87,31 @@ namespace VRRocket
 
         void OnDestroy()
         {
-            if (m_HookedGrab && m_Grab != null) m_Grab.selectEntered.RemoveListener(OnSelectEntered);
+            if (!m_HookedGrab || m_Grab == null) return;
+            m_Grab.selectEntered.RemoveListener(OnSelectEntered);
+            m_Grab.selectExited.RemoveListener(OnSelectExited);
+            m_Grab.hoverEntered.RemoveListener(OnHoverEntered);
         }
 
         void OnSelectEntered(SelectEnterEventArgs args)
         {
             lastHoldingInteractor = args.interactorObject;
+            AssemblyEvents.RaisePartGrabbed(this, args.interactorObject);
+        }
+
+        void OnSelectExited(SelectExitEventArgs args)
+        {
+            if (!isActiveAndEnabled || !gameObject.activeInHierarchy) return;   // disable-time release: no feedback
+            AssemblyEvents.RaisePartReleased(this, args.interactorObject);
+        }
+
+        void OnHoverEntered(HoverEnterEventArgs args)
+        {
+            if (isHeld) return;
+            var cooldown = AssemblyFeedback.instance != null && AssemblyFeedback.instance.library != null ? AssemblyFeedback.instance.library.hapticHoverCooldown : 0.25f;
+            if (Time.time - m_LastHoverTick < cooldown) return;
+            m_LastHoverTick = Time.time;
+            AssemblyEvents.RaisePartHovered(this, args.interactorObject);
         }
 
         /// <summary>Ask for part-side glow this frame; the brightest request wins and it resets every frame.</summary>

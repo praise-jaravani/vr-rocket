@@ -5,7 +5,7 @@ For Yi-Xuan and Richard. How to drop the rocket into your scene, what it tells y
 ## 1. Drop in the prefab
 
 1. Place `Assets/VRRocket/Prefabs/RocketWorkstation.prefab` with its root **on the workstation desk surface** (its origin is the desk top). It needs about 1.6 by 0.9 m of clear desk around the origin: the parts tray is to the left (-x), the stand and respawn pad to the right (+x). Desk height around 0.95 m.
-2. Your scene needs an XR rig with the XRI `NearFarInteractor` hands. `Assets/XRI_Examples/Global/Prefabs/Complete XR Origin Set Up Variant.prefab` works as is. Rocket parts are near-grab only; nothing on the rig has to change.
+2. Your scene needs an XR rig with the XRI `NearFarInteractor` hands. `Assets/XRI_Examples/Global/Prefabs/Complete XR Origin Set Up Variant.prefab` works as is. Rocket parts are near-grab only. One recommended change on the rig instance: untick Play Hover Entered and Play Select Entered on the `SimpleHapticFeedback` components of the Near-Far and Poke interactors (both hands), otherwise the rig's generic buzz plays on top of the rocket's own designed haptics (SPEC 6). Both shipped scenes already do this.
 3. Nothing in `Assets/VRRocket/Scripts` references the environment. The rocket does not care what room it is in.
 4. `Env_ControlRoom.unity` shows a working placement: the prefab sits on `ControlRoom/Anchors/WorkstationAnchor`.
 

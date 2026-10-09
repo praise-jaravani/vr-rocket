@@ -44,6 +44,7 @@ namespace VRRocket
         bool m_Blending;
         float m_BlendStart;
         Pose m_BlendFrom;
+        float m_LastTickDepth;
 
         public AssemblyTuning tuning
         {
@@ -199,6 +200,7 @@ namespace VRRocket
                 {
                     m_Guided = true;
                     m_Part.SetGuided();
+                    m_LastTickDepth = 0f;
                 }
             }
 
@@ -277,6 +279,20 @@ namespace VRRocket
                 targetPose.rotation = m_SeatedRotation;
                 m_Point.RequestGlow(1f);
                 m_Part.RequestGlow(1f);
+
+                // Slot texture: one haptic tick per hapticSlideTickDistance of displayed travel. XRGrabInteractable runs the
+                // transformers in the Dynamic and OnBeforeRender phases, so count in Dynamic only: once per frame at most.
+                if (updatePhase == XRInteractionUpdateOrder.UpdatePhase.Dynamic)
+                {
+                    var shown = GuideMath.Depth(targetPose.position, seat, axis);
+                    var lib = AssemblyFeedback.instance != null ? AssemblyFeedback.instance.library : null;
+                    var tick = (lib != null ? lib.hapticSlideTickDistance : 0.004f) * s;
+                    if (tick > 0f && Mathf.Abs(shown - m_LastTickDepth) >= tick)
+                    {
+                        m_LastTickDepth = shown;
+                        AssemblyEvents.RaiseGuideSlideTick(m_Part);
+                    }
+                }
             }
 
             ApplyBlend(ref targetPose, t);
@@ -320,6 +336,7 @@ namespace VRRocket
             m_Guided = true;
             m_FromAttached = false;
             m_Part.SetGuided();
+            m_LastTickDepth = GuideMath.Depth(transform.position, SeatPosition, point.GuideAxisWorld);
             SetRocketCollisionsIgnored(true);
             StartBlend();
             AssemblyEvents.RaiseGuideEngaged(m_Part, point);

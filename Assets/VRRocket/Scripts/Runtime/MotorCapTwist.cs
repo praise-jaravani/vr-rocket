@@ -35,6 +35,7 @@ namespace VRRocket
         float m_StartDepth;             // depth of the grabbed pose along the pull-off axis at grab begin
         float m_PrevPositionYaw;
         float m_PrevWristYaw;
+        float m_TextureAccum;
         TwistMode m_Mode;
         bool m_Active;
 
@@ -168,9 +169,24 @@ namespace VRRocket
                     m_Mode = TwistMode.None;
                 }
                 var clockwiseDelta = m_ClockwiseFromBelowIsNegativeYaw ? -yawDelta : yawDelta;
+                var before = m_Logic.progress;
                 var (detents, justLocked) = m_Logic.Advance(clockwiseDelta);
                 for (var i = 0; i < detents; i++) AssemblyEvents.RaiseCapDetent(m_Part);
                 if (justLocked) AssemblyEvents.RaiseCapLocked(m_Part);
+                // Thread texture between detents: one light tick per hapticTwistTextureAngle of new progress; detent and lock frames skip it.
+                var gained = m_Logic.progress - before;
+                if (detents > 0 || justLocked) m_TextureAccum = 0f;
+                else if (gained > 0f)
+                {
+                    var lib = AssemblyFeedback.instance != null ? AssemblyFeedback.instance.library : null;
+                    var step = lib != null ? lib.hapticTwistTextureAngle : 6f;
+                    m_TextureAccum += gained;
+                    if (step > 0f && m_TextureAccum >= step)
+                    {
+                        m_TextureAccum -= step;
+                        AssemblyEvents.RaiseTwistTexture(m_Part);
+                    }
+                }
             }
 
             // Gap closes once locked.

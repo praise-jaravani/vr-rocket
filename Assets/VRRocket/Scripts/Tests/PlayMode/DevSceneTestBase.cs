@@ -85,6 +85,12 @@ namespace VRRocket.Tests
             AssemblyEvents.CapDetent += OnCapDetent;
             AssemblyEvents.CapLocked += OnCapLocked;
             AssemblyEvents.PrototypeComplete += OnPrototypeComplete;
+            AssemblyEvents.GuideSlideTick += OnSlideTick;
+            AssemblyEvents.TwistTexture += OnTwistTexture;
+            AssemblyEvents.PartGrabbed += OnGrabbed;
+            AssemblyEvents.PartReleased += OnReleasedPart;
+            AssemblyEvents.PartHovered += OnHovered;
+            AssemblyEvents.KitSpawned += OnKitSpawned;
             yield return new WaitForSeconds(0.5f);
         }
 
@@ -98,8 +104,21 @@ namespace VRRocket.Tests
             AssemblyEvents.CapDetent -= OnCapDetent;
             AssemblyEvents.CapLocked -= OnCapLocked;
             AssemblyEvents.PrototypeComplete -= OnPrototypeComplete;
+            AssemblyEvents.GuideSlideTick -= OnSlideTick;
+            AssemblyEvents.TwistTexture -= OnTwistTexture;
+            AssemblyEvents.PartGrabbed -= OnGrabbed;
+            AssemblyEvents.PartReleased -= OnReleasedPart;
+            AssemblyEvents.PartHovered -= OnHovered;
+            AssemblyEvents.KitSpawned -= OnKitSpawned;
             yield return null;
         }
+
+        void OnSlideTick(RocketPart p) => events.Add("slideTick:" + p.name);
+        void OnTwistTexture(RocketPart p) => events.Add("twistTexture");
+        void OnGrabbed(RocketPart p, UnityEngine.XR.Interaction.Toolkit.Interactors.IXRInteractor i) => events.Add("grabbed:" + p.name);
+        void OnReleasedPart(RocketPart p, UnityEngine.XR.Interaction.Toolkit.Interactors.IXRInteractor i) => events.Add("releasedPart:" + p.name);
+        void OnHovered(RocketPart p, UnityEngine.XR.Interaction.Toolkit.Interactors.IXRInteractor i) => events.Add("hovered:" + p.name);
+        void OnKitSpawned() => events.Add("kitSpawned");
 
         void OnEngaged(RocketPart p, AttachPoint a) => events.Add("engaged:" + p.name + "@" + a.pointName);
         void OnReleased(RocketPart p, AttachPoint a) => events.Add("released:" + p.name + "@" + a.pointName);

@@ -1,4 +1,5 @@
 using System;
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 namespace VRRocket
 {
@@ -18,6 +19,14 @@ namespace VRRocket
         public static event Action<RocketPart> PrototypeComplete;   // the stand opens; the tube is the argument
         public static event Action<RocketPart, float, bool> PartImpact;  // part, relative speed, hit another part
 
+        // immersion haptics
+        public static event Action<RocketPart, IXRInteractor> PartHovered;   // a hand came within reach of a loose part
+        public static event Action<RocketPart, IXRInteractor> PartGrabbed;
+        public static event Action<RocketPart, IXRInteractor> PartReleased;
+        public static event Action<RocketPart> GuideSlideTick;               // one slot-texture tick of guided travel
+        public static event Action<RocketPart> TwistTexture;                 // one thread-texture tick between cap detents
+        public static event Action KitSpawned;                               // a fresh kit arrived on the tray
+
         internal static void RaiseCapDetent(RocketPart part) => CapDetent?.Invoke(part);
         internal static void RaiseCapLocked(RocketPart part) => CapLocked?.Invoke(part);
         internal static void RaiseGuideEngaged(RocketPart part, AttachPoint point) => GuideEngaged?.Invoke(part, point);
@@ -27,5 +36,11 @@ namespace VRRocket
         internal static void RaisePartRespawned(RocketPart part) => PartRespawned?.Invoke(part);
         internal static void RaisePrototypeComplete(RocketPart tube) => PrototypeComplete?.Invoke(tube);
         internal static void RaisePartImpact(RocketPart part, float speed, bool hitPart) => PartImpact?.Invoke(part, speed, hitPart);
+        internal static void RaisePartHovered(RocketPart part, IXRInteractor interactor) => PartHovered?.Invoke(part, interactor);
+        internal static void RaisePartGrabbed(RocketPart part, IXRInteractor interactor) => PartGrabbed?.Invoke(part, interactor);
+        internal static void RaisePartReleased(RocketPart part, IXRInteractor interactor) => PartReleased?.Invoke(part, interactor);
+        internal static void RaiseGuideSlideTick(RocketPart part) => GuideSlideTick?.Invoke(part);
+        internal static void RaiseTwistTexture(RocketPart part) => TwistTexture?.Invoke(part);
+        internal static void RaiseKitSpawned() => KitSpawned?.Invoke();
     }
 }

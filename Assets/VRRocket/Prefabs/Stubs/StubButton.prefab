@@ -31,12 +31,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2876667103213065188}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 292286444485632746}
-  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1626608066737500270
 MonoBehaviour:
@@ -388,6 +389,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3130556819844574636}
   - component: {fileID: 2304902795837412248}
+  - component: {fileID: 1021381631049878507}
   m_Layer: 0
   m_Name: StubButton
   m_TagString: Untagged
@@ -402,14 +404,15 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3399821747579187769}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8896876475424189163}
   - {fileID: 292286444485632746}
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2304902795837412248
 MonoBehaviour:
@@ -425,13 +428,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_InteractionManager: {fileID: 0}
   m_Colliders: []
-  m_InteractionLayerMask:
-    serializedVersion: 2
-    m_Bits: 1
   m_InteractionLayers:
     m_Bits: 1
   m_DistanceCalculationMode: 1
   m_SelectMode: 0
+  m_FocusMode: 1
   m_CustomReticle: {fileID: 0}
   m_AllowGazeInteraction: 0
   m_AllowGazeSelect: 0
@@ -464,6 +465,18 @@ MonoBehaviour:
   m_SelectExited:
     m_PersistentCalls:
       m_Calls: []
+  m_FirstFocusEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  m_LastFocusExited:
+    m_PersistentCalls:
+      m_Calls: []
+  m_FocusEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  m_FocusExited:
+    m_PersistentCalls:
+      m_Calls: []
   m_Activated:
     m_PersistentCalls:
       m_Calls: []
@@ -473,33 +486,8 @@ MonoBehaviour:
   m_StartingHoverFilters: []
   m_StartingSelectFilters: []
   m_StartingInteractionStrengthFilters: []
-  m_OnFirstHoverEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  m_OnLastHoverExited:
-    m_PersistentCalls:
-      m_Calls: []
-  m_OnHoverEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  m_OnHoverExited:
-    m_PersistentCalls:
-      m_Calls: []
-  m_OnSelectEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  m_OnSelectExited:
-    m_PersistentCalls:
-      m_Calls: []
-  m_OnSelectCanceled:
-    m_PersistentCalls:
-      m_Calls: []
-  m_OnActivate:
-    m_PersistentCalls:
-      m_Calls: []
-  m_OnDeactivate:
-    m_PersistentCalls:
-      m_Calls: []
+  m_AutoFindParentInteractableInHierarchy: 0
+  m_ParentInteractableObject: {fileID: 0}
   m_Button: {fileID: 2047426709777387324}
   m_PressDistance: 0.03
   m_PressBuffer: 0.01
@@ -508,13 +496,50 @@ MonoBehaviour:
   m_ToggleButton: 0
   m_OnPress:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1021381631049878507}
+        m_TargetAssemblyTypeName: VRRocket.ButtonPressHaptics, VRRocket.Runtime
+        m_MethodName: OnPress
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: 
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
   m_OnRelease:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1021381631049878507}
+        m_TargetAssemblyTypeName: VRRocket.ButtonPressHaptics, VRRocket.Runtime
+        m_MethodName: OnRelease
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: 
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
   m_OnValueChange:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &1021381631049878507
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3399821747579187769}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fe4ae1a6eb558a4caab23c53fb5270f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VRRocket.Runtime::VRRocket.ButtonPressHaptics
+  m_Library: {fileID: 0}
 --- !u!1 &4539088451305259770
 GameObject:
   m_ObjectHideFlags: 0
@@ -540,12 +565,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4539088451305259770}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 292286444485632746}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!82 &5978349121402991471
 AudioSource:
@@ -557,7 +583,8 @@ AudioSource:
   m_Enabled: 1
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
-  m_audioClip: {fileID: 8300000, guid: 1d4ffba877e11574b83dd66ffe09c3e2, type: 3}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 8300000, guid: 1d4ffba877e11574b83dd66ffe09c3e2, type: 3}
   m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
@@ -704,14 +731,15 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5448982282374398281}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 5737089665897343628}
   - {fileID: 3650779569189483486}
   m_Father: {fileID: 3130556819844574636}
-  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &526452096116397592
 MonoBehaviour:
@@ -729,6 +757,7 @@ MonoBehaviour:
   m_InteractableSource: {fileID: 2304902795837412248}
   m_IgnoreHoverEvents: 0
   m_IgnoreHoverPriorityEvents: 0
+  m_IgnoreFocusEvents: 1
   m_IgnoreSelectEvents: 1
   m_IgnoreActivateEvents: 0
   m_SelectClickAnimationMode: 1
@@ -766,6 +795,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 3130556819844574636}
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 8bd9b373b10f465e9c8a7c4a8f8d1f32, type: 3}
@@ -817,10 +847,19 @@ PrefabInstance:
       value: PushButton Visuals
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: -7069634194989937786, guid: 8bd9b373b10f465e9c8a7c4a8f8d1f32, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4497473124416054233}
+    - targetCorrespondingSourceObject: {fileID: -7069634194989937786, guid: 8bd9b373b10f465e9c8a7c4a8f8d1f32, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3931464535981355190}
   m_SourcePrefab: {fileID: 100100000, guid: 8bd9b373b10f465e9c8a7c4a8f8d1f32, type: 3}
---- !u!4 &8896876475424189163 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 8bd9b373b10f465e9c8a7c4a8f8d1f32, type: 3}
+--- !u!23 &175690768068096175 stripped
+MeshRenderer:
+  m_CorrespondingSourceObject: {fileID: 9116018657859665327, guid: 8bd9b373b10f465e9c8a7c4a8f8d1f32, type: 3}
   m_PrefabInstance: {fileID: 9003460336301198592}
   m_PrefabAsset: {fileID: 0}
 --- !u!23 &1956172077093659518 stripped
@@ -828,19 +867,14 @@ MeshRenderer:
   m_CorrespondingSourceObject: {fileID: -1740905847569387906, guid: 8bd9b373b10f465e9c8a7c4a8f8d1f32, type: 3}
   m_PrefabInstance: {fileID: 9003460336301198592}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &6994418282940253830 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: -7069634194989937786, guid: 8bd9b373b10f465e9c8a7c4a8f8d1f32, type: 3}
-  m_PrefabInstance: {fileID: 9003460336301198592}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &2047426709777387324 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -2262112375414930884, guid: 8bd9b373b10f465e9c8a7c4a8f8d1f32, type: 3}
   m_PrefabInstance: {fileID: 9003460336301198592}
   m_PrefabAsset: {fileID: 0}
---- !u!23 &175690768068096175 stripped
-MeshRenderer:
-  m_CorrespondingSourceObject: {fileID: 9116018657859665327, guid: 8bd9b373b10f465e9c8a7c4a8f8d1f32, type: 3}
+--- !u!1 &6994418282940253830 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -7069634194989937786, guid: 8bd9b373b10f465e9c8a7c4a8f8d1f32, type: 3}
   m_PrefabInstance: {fileID: 9003460336301198592}
   m_PrefabAsset: {fileID: 0}
 --- !u!54 &4497473124416054233
@@ -850,10 +884,21 @@ Rigidbody:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6994418282940253830}
-  serializedVersion: 2
+  serializedVersion: 5
   m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
   m_UseGravity: 0
   m_IsKinematic: 1
   m_Interpolate: 0
@@ -867,8 +912,21 @@ SphereCollider:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6994418282940253830}
   m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
   m_IsTrigger: 0
+  m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 2
+  serializedVersion: 3
   m_Radius: 0.053850874
   m_Center: {x: -0.000000067055225, y: 0.08, z: -0.00083098747}
+--- !u!4 &8896876475424189163 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 8bd9b373b10f465e9c8a7c4a8f8d1f32, type: 3}
+  m_PrefabInstance: {fileID: 9003460336301198592}
+  m_PrefabAsset: {fileID: 0}

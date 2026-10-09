@@ -286,7 +286,26 @@ Audio:
 - Use placeholders now: `Assets/XRI_Examples/Global/Audio/Button_22_Click.wav`, `HoverSound.wav`, `Button_14_Hover.wav`, and `Assets/Samples/XR Interaction Toolkit/3.4.0/Starter Assets/DemoAssets/Audio/Button Pop.wav`. Reference them, do not move them.
 - Sounds are 3D and play from the attach point or the part.
 
-Haptics: confirm the correct XRI 3.4 call for sending an impulse to the controller that is holding a part by reading the package source under `Library/PackageCache/com.unity.xr.interaction.toolkit*`. Do not guess the API.
+Haptics: sent through the controller's `HapticImpulsePlayer` as amplitude, duration and frequency (confirmed in the XRI 3.4.0 source; `OpenXRHapticImpulseChannel` passes all three). Designed for the Quest 3 Touch Plus controllers, whose voice-coil actuators honour frequency (Quest 2 ignores it): low frequency (80 to 120 Hz) for heavy events such as locks, clunks and heft; high frequency (200 to 250 Hz) for fine events such as ticks and textures; durations of 10 to 100 ms, with a strong lock at 200 ms; an optional second "settle" pulse after a gap. All values are in `FeedbackLibrary` and are starting points for headset tuning.
+
+Immersion haptics added on 9 Oct 2026 beyond the table above (all tunable, holding hand unless stated):
+
+| Event | Haptic | Why |
+|---|---|---|
+| Hand comes within reach of a loose part | 0.08 for 0.012 s at 250 Hz, at most every 0.25 s per part | "you can take this", replaces the rig's generic hover buzz |
+| Loose part picked up | 0.3 for 0.03 s at 160 Hz | contact |
+| Rocket or inspection prototype picked up | 0.55 for 0.05 s at 90 Hz, then 0.2 for 0.08 s | heft |
+| Loose part let go | 0.12 for 0.015 s at 180 Hz | release |
+| Rocket let go | 0.25 for 0.03 s at 110 Hz | release |
+| Guided travel | 0.07 for 0.01 s at 220 Hz per 4 mm of travel | the slot's texture, the constraint principle made tangible |
+| Cap turning between detents | 0.08 for 0.012 s at 200 Hz per 6 degrees of new progress | thread engaging; detent frames skip it |
+| Rocket lifted out of the stand | 0.35 for 0.05 s at 120 Hz, then 0.15 for 0.06 s | the clamp letting go |
+| Rocket snapped back into the stand | 0.6 for 0.10 s at 80 Hz, then 0.2 for 0.06 s | clunk |
+| Submission accepted | both hands 0.5 for 0.12 s at 100 Hz, then 0.3 for 0.15 s | the bin takes it |
+| Fresh kit arrives | both hands 0.15 for 0.04 s at 200 Hz | new build |
+| Push button down / up | 0.6 for 0.03 s at 200 Hz / 0.25 for 0.02 s at 180 Hz, on the pressing hand | mechanical click |
+
+Unchanged on purpose: rejected placement, break-away, early let-go of the cap and respawn stay silent; impacts of loose parts stay audio only. The spec table's own values gained a frequency and, for seats, the lock and the stand release, a settle pulse. The rig's `SimpleHapticFeedback` hover and select buzz is switched off on the hands in both scenes so these are the only haptics the user feels.
 
 ## 7. Build record and launch outcome [PRAISE produces, TEAM consumes]
 

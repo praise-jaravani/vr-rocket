@@ -64,6 +64,8 @@ namespace VRRocket.Tests
             Assert.IsTrue(guide.isGuided);
             Assert.AreEqual(d2 * Fraction(d2), Rel().y, 2e-3f);
             Assert.Greater(Rel().y, d2 * 0.9f, "pull has faded out at the outer end");
+            Assert.GreaterOrEqual(CountPrefix("slideTick:NoseCone_1"), 3, "sliding along the guide ticks the slot texture haptic");
+            Assert.AreEqual(1, CountPrefix("grabbed:NoseCone_1"), "pick-up haptic once");
 
             // Break away: sideways beyond breakRadius
             yield return MoveHand(seatPos + new Vector3(breakR * 1.5f, 0.02f, 0f) + grabOffset);

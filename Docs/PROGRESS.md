@@ -171,3 +171,18 @@ Items 1 to 14. In particular: the twist direction, whether a 40 degree slot tole
 - Test harness: the hand's attach controller smoothing is disabled in tests and the placement helper verifies and re-derives the hand relation, because teleporting a controller through XRI's anchor smoothing is not what a real hand does.
 - XRI logs "Retain Transform Parent ... old parent is deactivated" on two test pull-offs; harmless, the transformer re-parents loose parts itself.
 - In Env_ControlRoom the stub Submit, Failed-launch and Abort buttons sit on the console top next to the real-looking panel buttons; the panel buttons are not wired. Delete the stubs when the real systems arrive.
+
+## 2026-10-09: Haptics pass for the Quest 3, and the room first in the build
+
+**Research.** Meta's OpenXR haptics documentation states that varying vibration frequency is supported on controllers with a voice-coil motor, which includes the Quest 3's Touch Plus (and Touch Pro); Quest 2 ignores it. XRI 3.4's `OpenXRHapticImpulseChannel` passes amplitude, duration and frequency through, so frequency is a usable design dimension here. Design rules applied: low frequency (80 to 120 Hz) for heavy events, high (200 to 250 Hz) for fine ones, 10 to 100 ms durations with the lock at 200 ms, an optional second settle pulse, and continuous sensations rendered as sparse ticks by distance or angle rather than sustained buzz, which fatigues and masks the discrete clicks. The rig's generic `SimpleHapticFeedback` (0.25 for 0.1 s on every hover, 0.5 for 0.1 s on every grab, on every interactor) was silenced on the hands in both scenes so only the designed set plays.
+
+**What changed**
+- `FeedbackLibrary.Haptic` gained `frequency` and an optional second pulse; the SPEC 6 values keep their amplitude and duration and gained a frequency, with a settle pulse on seats, the cap lock and the stand release.
+- New haptics (SPEC 6 now lists them): presence tick when a hand comes within reach of a loose part, pick-up contact, rocket heft, let-go, slot texture ticks every 4 mm of guided travel, thread texture ticks every 6 degrees of cap progress between detents, clamp let-go when the rocket is lifted out, clunk when it snaps back into the stand, both-hand confirmation when the bin accepts the rocket, both-hand tick when a fresh kit arrives, push button down and up on the pressing hand.
+- Kept silent on purpose: rejected placement, break-away, early let-go of the cap, respawn, loose-part impacts (audio only).
+- `ButtonPressHaptics` on both push button prefabs (stubs and the room's console), wired through the button's own onPress/onRelease events.
+- Build list: Env_ControlRoom first, then Dev_Interactions, then the XRI example scene.
+
+**Verified**: 27/27 edit-mode, 11/11 play-mode. The play tests now assert that the slide texture ticks during a guided slide, the thread texture ticks between detents, the pick-up and heft events fire once, the kit-spawned event fires once, and that an early let-go of the cap produces no feedback-bearing event. One real bug found on the way: the slide tick was gated on the Fixed update phase, which XRI never uses for grab transformers; it now counts in the Dynamic phase.
+
+**Not verified in the headset**: everything about how these feel. The simulator has no haptic device. Tune in `Assets/VRRocket/Settings/FeedbackLibrary.asset`; if the frequency changes do nothing on your controllers, set them to 0 to fall back to the runtime default.

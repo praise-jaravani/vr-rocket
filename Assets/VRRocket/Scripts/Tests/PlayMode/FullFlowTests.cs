@@ -79,6 +79,9 @@ namespace VRRocket.Tests
             Assert.IsTrue(assembly.inStand);
             Assert.AreEqual(AssemblyState.BuildingAirframe, assembly.State);
             Assert.AreEqual(9, workstation.respawner.parts.Count, "nine fresh parts on the tray");
+            Assert.AreEqual(1, Count("kitSpawned"), "fresh-kit haptic once");
+            Assert.AreEqual(1, CountPrefix("grabbed:BodyTube"), "rocket heft haptic once");
+            Assert.GreaterOrEqual(CountPrefix("releasedPart:BodyTube"), 1, "rocket let-go haptic");
             foreach (var p in workstation.respawner.parts) Assert.AreEqual(PartState.Free, p.state, p.name + " is loose");
             Assert.IsTrue(Point("FinSlot_1").Accepts(Part(PartType.TailFin, 1)), "the new tube accepts parts");
             // only one inspection prototype at a time: the old inspect rocket's points are gated off

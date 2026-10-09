@@ -342,6 +342,7 @@ namespace VRRocket
             m_Frozen = false;
             m_TubeOutsideTimer = 0f;
             AfterChange();
+            AssemblyEvents.RaiseKitSpawned();
         }
     }
 }

@@ -18,6 +18,14 @@ namespace VRRocket.Tests
         MotorCapTwist m_Twist;
         AttachPoint m_Seat;
 
+        /// <summary>Events that carry feedback. Raw grab, release and hover notifications are filtered by the feedback layer (a seated cap's let-go plays nothing).</summary>
+        int FeedbackEventCount()
+        {
+            var n = 0;
+            foreach (var e in events) if (!e.StartsWith("grabbed:") && !e.StartsWith("releasedPart:") && !e.StartsWith("hovered:")) n++;
+            return n;
+        }
+
         IEnumerator SeatCap()
         {
             // SPEC 5.5: the cap always needs the motor, even with the order gating off, so seat the motor on the bare tube first.
@@ -71,10 +79,11 @@ namespace VRRocket.Tests
             yield return GrabSeatedCapOnOrbit();
             Assert.AreEqual(gap, Gap(), 5e-4f, "gripping does not move it");
 
-            // Clockwise viewed from below is a negative Unity yaw about the tube's +Y.
-            yield return Turn(0f, -100f);
+            // Clockwise viewed from below is a negative Unity yaw about the tube's +Y. Fine steps, as a real wrist moves.
+            yield return Turn(0f, -100f, 5f);
             Assert.AreEqual(100f, m_Twist.progressDegrees, 1.5f);
             Assert.AreEqual(3, Count("detent"), "ticks at 30, 60, 90");
+            Assert.GreaterOrEqual(Count("twistTexture"), 6, "thread texture ticks between the detents");
             Assert.Less(Quaternion.Angle(m_Cap.transform.rotation, Quaternion.AngleAxis(-100f, up) * seatedRotation), 1.5f, "cap turned with the hand");
             Assert.AreEqual(gap, Gap(), 5e-4f, "still unlocked, gap stays");
 
@@ -123,13 +132,13 @@ namespace VRRocket.Tests
             Assert.AreEqual(2, Count("detent"));
 
             // Let go early: stays seated, unlocked, no warning of any kind
-            var eventsBefore = events.Count;
+            var eventsBefore = FeedbackEventCount();
             Release(m_Cap);
             yield return new WaitForSeconds(0.3f);
             Assert.AreEqual(PartState.Attached, m_Cap.state, "cap stays seated");
             Assert.IsFalse(m_Twist.capLocked);
             Assert.AreEqual(gap, Gap(), 5e-4f, "gap remains");
-            Assert.AreEqual(eventsBefore, events.Count, "letting go early is silent");
+            Assert.AreEqual(eventsBefore, FeedbackEventCount(), "letting go early is silent");
 
             // Progress is kept between grabs
             yield return GrabSeatedCapOnOrbit();
