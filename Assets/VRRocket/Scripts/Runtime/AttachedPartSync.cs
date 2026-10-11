@@ -16,10 +16,15 @@ namespace VRRocket
     {
         readonly List<RocketPart> m_Parts = new List<RocketPart>(16);
 
-        void OnEnable() => Application.onBeforeRender += Sync;
-        void OnDisable() => Application.onBeforeRender -= Sync;
+        void OnEnable() => Application.onBeforeRender += SyncBeforeRender;
+        void OnDisable() => Application.onBeforeRender -= SyncBeforeRender;
         void FixedUpdate() => Sync();
         void LateUpdate() => Sync();
+
+        // After XRI's own before-render pass (XRInteractionUpdateOrder.k_BeforeRenderOrder = 100) and after tracked pose drivers
+        // (order 0), so the parts are placed against the tube's final pose for this frame.
+        [BeforeRenderOrder(200)]
+        void SyncBeforeRender() => Sync();
 
         void Sync()
         {

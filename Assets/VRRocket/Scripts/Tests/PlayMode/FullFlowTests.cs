@@ -166,6 +166,36 @@ namespace VRRocket.Tests
             Assert.IsTrue(workstation.respawner.Contains(flap.transform.position), "and inside the workstation bounds");
         }
 
+        /// <summary>Moves the hand a little every frame and measures, after each frame has rendered, how far the nose is from where the tube says it should be.</summary>
+        [UnityTest]
+        public IEnumerator AttachedParts_DoNotLagBehindTheRocket_FrameByFrame()
+        {
+            var tube = Tube;
+            yield return SeatPart(Part(PartType.NoseCone), Point("NoseSeat"), Quaternion.identity);
+            var nose = Part(PartType.NoseCone);
+            var seat = Point("NoseSeat").transform;
+            var expectedLocal = seat.InverseTransformPoint(nose.transform.position);
+            yield return Grab(tube);
+            var start = controller.position;
+            var worst = 0f; var worstFrame = -1; var samples = 0;
+            for (var frame = 0; frame < 90; frame++)
+            {
+                // a steady hand sweep of about 0.6 m/s with a slow turn, like carrying the rocket to the bin
+                var k = frame / 90f;
+                controller.position = start + new Vector3(0.5f * k, 0.15f * Mathf.Sin(k * 6f), -0.3f * k);
+                controller.rotation = Quaternion.Euler(0f, 90f * k, 20f * Mathf.Sin(k * 4f));
+                yield return new WaitForEndOfFrame();
+                if (frame < 10) continue;   // let the grab settle
+                var err = Vector3.Distance(nose.transform.position, seat.TransformPoint(expectedLocal));
+                samples++;
+                if (err > worst) { worst = err; worstFrame = frame; }
+            }
+            Assert.Greater(samples, 50, "sampled frames");
+            Assert.Less(worst, 0.002f, "the nose is rendered where the tube says it is, every frame (worst " + (worst * 1000f).ToString("F1") + " mm at frame " + worstFrame + ")");
+            Release(tube);
+            yield return new WaitForSeconds(0.3f);
+        }
+
         [UnityTest]
         public IEnumerator DroppedRocket_ReturnsToBench()
         {
