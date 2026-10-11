@@ -132,6 +132,41 @@ namespace VRRocket.Tests
         }
 
         [UnityTest]
+        public IEnumerator AttachedParts_FollowTheCarriedTube_AndDroppedPartsRespawn()
+        {
+            var tube = Tube;
+            yield return SeatPart(Part(PartType.NoseCone), Point("NoseSeat"), Quaternion.identity);
+            yield return SeatPart(Part(PartType.TailFin, 1), Point("FinSlot_1"));
+            var nose = Part(PartType.NoseCone);
+            var fin = Part(PartType.TailFin, 1);
+            Assert.AreSame(Point("NoseSeat").transform, nose.transform.parent, "the seated nose is a child of its seat");
+            var noseRel = tube.transform.InverseTransformPoint(nose.transform.position);
+            var finRel = tube.transform.InverseTransformPoint(fin.transform.position);
+
+            // carry the tube somewhere else, with the hand, and turn it
+            yield return Grab(tube);
+            var target = tube.transform.position + new Vector3(0.25f, 0.15f, -0.2f);
+            var rot = Quaternion.Euler(0f, 60f, 30f);
+            yield return PlaceHeld(target, rot);
+            yield return PlaceHeld(target + new Vector3(0f, 0.05f, 0.1f), rot);
+            Assert.Less(Vector3.Distance(tube.transform.InverseTransformPoint(nose.transform.position), noseRel), 0.003f, "the nose moved with the tube (tube " + tube.transform.position.ToString("F3") + ", nose " + nose.transform.position.ToString("F3") + ", nose parent " + (nose.transform.parent != null ? nose.transform.parent.name : "none") + ", kinematic " + nose.body.isKinematic + ")");
+            Assert.Less(Vector3.Distance(tube.transform.InverseTransformPoint(fin.transform.position), finRel), 0.003f, "the fin moved with the tube (parent " + (fin.transform.parent != null ? fin.transform.parent.name : "none") + ")");
+            Assert.AreEqual(PartState.Attached, nose.state);
+            Release(tube);
+            yield return new WaitForSeconds(0.5f);
+            Assert.Less(Vector3.Distance(tube.transform.InverseTransformPoint(nose.transform.position), noseRel), 0.003f, "the nose stayed on the tube after the drop (parent " + (nose.transform.parent != null ? nose.transform.parent.name : "none") + ")");
+
+            // a loose part knocked off the bench comes back on the respawn pad by itself
+            var flap = Part(PartType.WingFlap, 1);
+            yield return Grab(flap);
+            yield return PlaceHeld(workstation.transform.position + new Vector3(0.9f, -0.6f, 0f), Quaternion.identity);
+            Release(flap);
+            yield return new WaitForSeconds(0.8f);
+            Assert.Greater(flap.transform.position.y, workstation.transform.position.y - 0.05f, "a part dropped below the bench is back on the bench (y " + flap.transform.position.y.ToString("F3") + ")");
+            Assert.IsTrue(workstation.respawner.Contains(flap.transform.position), "and inside the workstation bounds");
+        }
+
+        [UnityTest]
         public IEnumerator DroppedRocket_ReturnsToBench()
         {
             var tube = Tube;

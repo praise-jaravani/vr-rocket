@@ -145,10 +145,16 @@ namespace VRRocket
             SetInterpolation(RigidbodyInterpolation.Interpolate);
         }
 
+        /// <summary>The part's rest pose under its attach point, recorded when it seated. <see cref="AttachedPartSync"/> re-asserts it every frame.</summary>
+        public Vector3 seatLocalPosition { get; private set; }
+        public Quaternion seatLocalRotation { get; private set; } = Quaternion.identity;
+
         internal void SetAttached(AttachPoint point)
         {
             attachedTo = point;
             state = PartState.Attached;
+            seatLocalPosition = transform.localPosition;
+            seatLocalRotation = transform.localRotation;
             // An attached part is a kinematic child moved by its parent; interpolating it makes it lag and wobble behind a
             // carried rocket, so interpolation is only on while the part moves on its own.
             SetInterpolation(RigidbodyInterpolation.None);

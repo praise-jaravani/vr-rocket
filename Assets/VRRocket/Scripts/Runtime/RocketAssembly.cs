@@ -102,8 +102,14 @@ namespace VRRocket
 
         void Start()
         {
+            EnsureSync(m_Tube);
             RefreshGating();
             ApplyPartCollisionRules();
+        }
+
+        static void EnsureSync(RocketPart tube)
+        {
+            if (tube != null && tube.GetComponent<AttachedPartSync>() == null) tube.gameObject.AddComponent<AttachedPartSync>();
         }
 
         void Update()
@@ -290,9 +296,8 @@ namespace VRRocket
             if (part.partType == PartType.BodyTube) return true;   // the working rocket can always be picked up; grabbing anywhere grabs the whole rocket
             if (part.state != PartState.Attached) return true;
             if (part.attachedTo == null || part.attachedTo.tube != m_Tube) return true;
-            // While the rocket is in a hand, grabbing anywhere grabs the rocket; only the cap can be worked on with the other hand.
-            // Parts come off only from a resting rocket, by a deliberate pull along their guide, and only when the state machine allows.
-            if (m_Tube.isHeld) return part.partType == PartType.MotorCap && !(m_CapTwist != null && m_CapTwist.capLocked);
+            // Parts come off by a deliberate pull along their guide, held or resting, whenever the state machine allows
+            // (two-handed: one hand holds the rocket, the other pulls the part).
             return m_Machine.CanRemove(part.partType);
         }
 
@@ -402,6 +407,7 @@ namespace VRRocket
             if (m_Respawner != null) m_Respawner.SetParts(newParts);
             m_Proxies.Clear();   // the old tube took its compound colliders with it
             m_Tube = tube;
+            EnsureSync(m_Tube);
             m_Machine.Reset();
             m_FlapPlacements.Clear();
             m_CapTwist = null;

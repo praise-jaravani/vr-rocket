@@ -94,6 +94,9 @@ namespace VRRocket.Tests
             AssemblyEvents.KitSpawned += OnKitSpawned;
             yield return new WaitForSeconds(0.5f);
             StandTubeUpright();
+            // let physics take the new pose before any test reads attach point positions
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
             yield return null;
         }
 
@@ -107,8 +110,9 @@ namespace VRRocket.Tests
             if (tube == null || tube.state != PartState.Free) return;
             workstation.TryGetTubeHome(out var home, out _);
             var body = tube.body;
-            if (body != null) { body.linearVelocity = Vector3.zero; body.angularVelocity = Vector3.zero; body.isKinematic = true; }
+            if (body != null) { body.linearVelocity = Vector3.zero; body.angularVelocity = Vector3.zero; body.isKinematic = true; body.interpolation = RigidbodyInterpolation.None; }
             tube.transform.SetPositionAndRotation(home + Vector3.up * 0.2f, workstation.partsTray.rotation);
+            if (body != null) { body.position = tube.transform.position; body.rotation = tube.transform.rotation; }
             Physics.SyncTransforms();
         }
 

@@ -228,3 +228,13 @@ Praise reported parts (the cone) coming off the assembled rocket, wobble when wo
 - Research used: Unity's collider and rigidbody manuals on compound colliders and kinematic bodies, and XRI's grab interactable docs on movement types. The alternative of removing part rigidbodies on attach was rejected because XRI's grab interactable requires one.
 
 **Verified**: 14/14 play-mode (compound colliders do not disturb the guided mechanic, carry, submission, returns). **Not verified in the headset**: the feel of the one-piece rocket, cap twist stability, button reach. If the cone still comes off, the next step is to require a two-handed pull (rocket held in one hand) for removal.
+
+## 2026-10-11: Attached parts now really move with the rocket (done)
+
+Praise's third test (SteamVR in the Editor): a seated cone stayed frozen in space when the tube was moved, so did every other part; attached parts could not be pulled off; parts on the floor were a chore to collect.
+
+- **Root cause, reproduced in a test.** A seated part is a kinematic rigidbody child of its attach point. Unity only drags a child rigidbody along when its parent is moved through the transform; when the parent is moved by the physics engine (XRI's kinematic movement while carried, falling, settling), the physics write-back restores the child's stale pose, so the part stays where it was and even its local pose goes wrong. XRI's grab interactable requires a rigidbody on every part, so the rigidbody cannot simply go. New `AttachedPartSync` on the tube re-asserts every attached part's recorded seat pose (`RocketPart.seatLocalPosition/Rotation`, taken at seating) in FixedUpdate, LateUpdate and before rendering, in both transform and rigidbody; held parts are left to the hand. The new test `AttachedParts_FollowTheCarriedTube_AndDroppedPartsRespawn` carries and turns the tube with the hand and checks the nose and a fin keep their tube-relative positions, then checks a flap dropped below the bench reappears on it.
+- **Removal while held.** The one-day-old rule that blocked grabbing attached parts while the rocket is in a hand is gone: parts come off by a deliberate pull along the guide whenever the state machine allows, so a cone can be pulled off a held tube (two-handed).
+- **Floor parts.** The respawner already returns any loose part below bench level to the respawn pad at once (now covered by the test). Parts that looked stuck on the floor were attached parts left behind by the bug above; a dropped tube returns to its bench slot.
+
+**Verified**: 31/31 edit-mode, 15/15 play-mode. **Not verified in the headset**: feel of the carried rocket with the sync, two-handed removal.
