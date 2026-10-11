@@ -244,3 +244,12 @@ Praise's third test (SteamVR in the Editor): a seated cone stayed frozen in spac
 Praise's fourth test: parts hold the rocket's shape now but trail behind it while it moves. Research (XRI manual and source, Unity threads on nested kinematic rigidbodies, XRI's socket interactor) pointed at two causes: XRI runs its before-render pass at order 100 while `AttachedPartSync` ran at the default order 0, and the tube was carried with the Kinematic movement type, whose rendered pose comes from rigidbody interpolation outside the sync points. Two changes: the body tube's grab interactable now uses the Instantaneous movement type (transform-driven while held, as XRI's socket forces for attached objects), so children follow through the hierarchy at every phase; and the sync's before-render callback carries `[BeforeRenderOrder(200)]`. A new frame-by-frame test sweeps the hand for 90 frames and measures the nose against the tube after each rendered frame (under 2 mm throughout). The fallback if the headset still shows lag is the per-part swap to rigidbody-free attached parts (one rigidbody per rocket), about a day of work.
 
 **Verified**: 16/16 play-mode. **Not verified in the headset**: lag during a carry.
+
+## 2026-10-11: Free build order and whole-rocket grab (done)
+
+Praise, after the fifth headset test (option 1 fixed the lag): the ordered build felt limiting, and pointing at the base while parts were attached kept picking the parts instead of the rocket.
+
+- `enforceOrder` is now off by default in `AssemblyTuning.asset` (and in the script default): any part attaches to the tube in any order; the cap still needs the motor and the motor cannot come out while the cap is on. The state machine is unchanged and still reports progress for the screen and the blueprint text; the order-dependent play test switches the setting on for itself.
+- `RocketAssembly.CanGrab`: a resting rocket is grabbed as a whole (attached parts refuse hover and select), and parts become grabbable only while the rocket is held in the other hand (or otherwise fixed), the way people build in VR. The tests' frozen upright tube counts as held.
+
+**Verified**: 16/16 play-mode, 31/31 edit-mode. **Not verified in the headset**: the two-handed removal feel and whether the free order makes the screen hints read oddly (they still suggest fins first).

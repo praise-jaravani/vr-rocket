@@ -243,14 +243,14 @@ Rules:
 - A point that is gated off behaves as a rejection: no glow, no snap.
 - States move backward when parts are removed (for example pulling a fin in AirframeComplete returns to BuildingAirframe).
 - Removal exceptions: the motor cannot be removed while the cap is seated. A locked cap cannot be removed. Airframe parts cannot be removed once the motor is seated.
-- The gating order is a setting (`enforceOrder`, default on, per Figure 2.4). With it off, the only rule is that the cap needs the motor.
+- The gating order is a setting (`enforceOrder`). Default changed to **off** on 11 Oct 2026 (Praise's decision after the headset test: the ordered build felt limiting). With it off any part attaches in any order and comes off at any time; the only rule is that the cap needs the motor, and the motor cannot come out while the cap is on. The states of the table still describe progress and drive the screen text.
 - `capLocked` and the flap placements are read at the moment of submission, not at PrototypeComplete, because the user may finish twisting the cap late.
 
 ### 5.6 Handling the rocket
 
 - (Changed 9 Oct 2026, Praise's decision after the first headset test: no assembly stand.) The body tube starts flat on the bench like every other part and can be grabbed at any time. The user holds it in one hand and fits parts with the other, or works on it while it rests on the bench. Attach points work in any orientation.
 - Every attached part is a kinematic child of its attach point, and its colliders are mirrored onto the tube's own rigidbody (compound collider), so the rocket is one physical unit: it rests on its fins, is pushed as one piece, and grabbing the tube anywhere carries the whole rocket at any stage of the build.
-- While the rocket is in a hand, attached parts cannot be grabbed; only the cap can be worked on with the other hand (twisted until it locks). Parts come off only from a resting rocket, by a deliberate pull along their guide, and only when the state machine of 5.5 allows. Rocket parts never collide with each other, so a held part cannot shove the tube or knock parts off; parts still collide with the bench and the room.
+- A resting rocket is grabbed as a whole: pointing at it never picks an attached part. Parts come off two-handed: while the rocket is held in the other hand, grab the part and pull it along its guide (the cap can also be twisted this way). This follows how people actually build in VR, base in one hand, parts with the other (Praise, 11 Oct 2026). Rocket parts never collide with each other, so a held part cannot shove the tube or knock parts off; parts still collide with the bench and the room.
 - At PrototypeComplete there is a sound plus a short vibration on both controllers; nothing else changes.
 
 ## 6. Feedback [PRAISE]
@@ -483,7 +483,7 @@ Checked against this project's own files:
 | capDetentAngle | 30 degrees | Turn between ratchet ticks |
 | capUnlockedGap | 0.002 m | Gap shown by an unlocked cap |
 | capPullOff | 0.04 m | Pull distance to remove an unlocked cap |
-| enforceOrder | true | Section 5.5 gating |
+| enforceOrder | false | Section 5.5 gating (free order since 11 Oct 2026) |
 | standClearance | 0.20 m | Tube base height above the desk |
 | respawnDelay | 1.5 s | Time out of bounds before respawn |
 

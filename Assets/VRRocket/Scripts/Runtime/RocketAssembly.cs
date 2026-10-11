@@ -296,8 +296,11 @@ namespace VRRocket
             if (part.partType == PartType.BodyTube) return true;   // the working rocket can always be picked up; grabbing anywhere grabs the whole rocket
             if (part.state != PartState.Attached) return true;
             if (part.attachedTo == null || part.attachedTo.tube != m_Tube) return true;
-            // Parts come off by a deliberate pull along their guide, held or resting, whenever the state machine allows
-            // (two-handed: one hand holds the rocket, the other pulls the part).
+            // A resting rocket is grabbed as a whole: pointing at it never picks an attached part. Parts come off two-handed,
+            // while the rocket is held (or otherwise fixed) in the other hand, by a deliberate pull along their guide, when
+            // the state machine allows.
+            var rocketHeld = m_Tube.isHeld || (m_Tube.body != null && m_Tube.body.isKinematic);
+            if (!rocketHeld) return false;
             return m_Machine.CanRemove(part.partType);
         }
 

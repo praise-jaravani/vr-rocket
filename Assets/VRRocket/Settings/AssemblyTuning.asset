@@ -29,7 +29,7 @@ MonoBehaviour:
   capDetentAngle: 30
   capUnlockedGap: 0.002
   capPullOff: 0.04
-  enforceOrder: 1
+  enforceOrder: 0
   standClearance: 0.2
   respawnDelay: 1.5
   nearGrabDistance: 0.12

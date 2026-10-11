@@ -73,6 +73,7 @@ namespace VRRocket.Tests
         [UnityTest]
         public IEnumerator Motor_RefusedBeforeAirframe_RefusedNozzleUp_SeatsNozzleDown_ThenCapGating()
         {
+            assembly.enforceOrder = true;   // this test covers the ordered build; the shipped default is a free order
             var motor = Part(PartType.Motor);
             var seat = Point("MotorSeat");
             var guide = motor.GetComponent<GuideGrabTransformer>();

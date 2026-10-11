@@ -130,7 +130,7 @@ namespace VRRocket.Tests
             Assert.AreEqual(AssemblyState.PrototypeComplete, assembly.State);
             Assert.IsFalse(assembly.isFrozen, "abort returns the same rocket to the bench, editable");
             Assert.IsTrue(tube.gameObject.activeInHierarchy);
-            Assert.IsTrue(assembly.CanGrab(Part(PartType.MotorCap)), "cap still editable after an abort");
+            Assert.IsFalse(assembly.CanGrab(Part(PartType.MotorCap)), "the returned rocket rests on the bench and is grabbed as a whole");
 
             // submit again and launch this time
             yield return CarryToBin();

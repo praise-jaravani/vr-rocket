@@ -42,7 +42,7 @@ namespace VRRocket
         public float capPullOff = 0.04f;
 
         [Header("Rules")]
-        public bool enforceOrder = true;
+        public bool enforceOrder = false;   // free build order (Praise, 11 Oct 2026); the cap still needs the motor
 
         [Header("Workstation")]
         public float standClearance = 0.20f;

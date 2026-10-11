@@ -54,7 +54,7 @@ namespace VRRocket.Tests
             Assert.AreEqual(1, Count("prototypeComplete"), "prototype complete fired once");
             var fin = Part(PartType.TailFin, 1);
             Assert.AreSame(tube, fin.attachedTo.tube, "parts are children of the rocket");
-            Assert.IsFalse(assembly.CanGrab(fin), "fins are locked once the motor is in");
+            Assert.IsTrue(assembly.CanGrab(fin), "in the free build order any part comes off a held rocket");
             Assert.IsTrue(assembly.CanGrab(Part(PartType.MotorCap)), "the cap can still be twisted");
             foreach (var p in tube.GetComponentsInChildren<RocketPart>())
                 if (p != tube) Assert.AreEqual(RigidbodyInterpolation.None, p.body.interpolation, p.name + " is not interpolated while attached");
@@ -124,8 +124,10 @@ namespace VRRocket.Tests
             Assert.IsFalse(tube.body.isKinematic, "back as a loose rocket");
             AssertAtHome(tube, "returned to its bench spot");
             Assert.AreSame(tube, Part(PartType.NoseCone).attachedTo.tube, "parts came back with it");
-            Assert.IsTrue(assembly.CanGrab(Part(PartType.MotorCap)), "cap editable");
-            Assert.IsFalse(assembly.CanGrab(Part(PartType.TailFin, 1)), "fins still locked by the seated motor");
+            Assert.IsFalse(assembly.CanGrab(Part(PartType.MotorCap)), "a resting rocket is grabbed as a whole: no part can be picked off it");
+            StandTubeUpright();   // the player picks the rocket up with the other hand
+            Assert.IsTrue(assembly.CanGrab(Part(PartType.MotorCap)), "held: the cap is editable");
+            Assert.IsTrue(assembly.CanGrab(Part(PartType.TailFin, 1)), "held: fins come off too in the free build order");
             // and it can be corrected: pull the cap, which is a backward move
             yield return RemovePart(Part(PartType.MotorCap));
             Assert.AreEqual(AssemblyState.MotorFitted, assembly.State);
